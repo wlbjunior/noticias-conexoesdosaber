@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
-import { BookOpen, Twitter, Github, Mail, Building2, Settings } from "lucide-react";
+import { Twitter, Github, Mail, Building2, Settings } from "lucide-react";
+import logo from "@/assets/logo.png";
 import { Button } from "@/components/ui/button";
 import { TOPICS, topicStyles } from "@/lib/news/types";
 import { cn } from "@/lib/utils";
@@ -30,9 +31,7 @@ export function MainFooter() {
           {/* Coluna 1 – Marca */}
           <div className="space-y-4">
             <Link to="/news" className="flex items-center gap-3 text-base font-semibold text-foreground">
-              <span className="flex h-10 w-10 items-center justify-center rounded-md border border-border bg-background">
-                <BookOpen className="h-5 w-5 text-primary" aria-hidden="true" />
-              </span>
+              <img src={logo} alt="Conexões do Saber" className="h-10 w-10 object-contain" />
               <span>Conexões do Saber</span>
             </Link>
             <p className="max-w-xs text-sm text-muted-foreground">
