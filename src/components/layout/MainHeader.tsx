@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { BookOpen, Menu, X, ChevronDown, Search as SearchIcon } from "lucide-react";
+import { Menu, X, ChevronDown, Search as SearchIcon } from "lucide-react";
+import logo from "@/assets/logo.png";
 import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
 import {
@@ -61,9 +62,7 @@ export function MainHeader() {
             to="/news"
             className="flex items-center gap-3 rounded-md px-1 py-1 text-base font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
-            <span className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-muted">
-              <BookOpen className="h-5 w-5 text-primary" aria-hidden="true" />
-            </span>
+            <img src={logo} alt="Conexões do Saber" className="h-9 w-9 object-contain" />
             <span className="hidden text-sm sm:inline-block">Conexões do Saber</span>
           </Link>
 
