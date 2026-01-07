@@ -1,54 +1,55 @@
-import { Card } from "@/components/ui/card";
 import { Lightbulb } from "lucide-react";
 import { useFunFact } from "@/hooks/useFunFact";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export function FunFactWidget() {
   const { data: funFact, isLoading, error } = useFunFact();
 
-  if (error) {
-    return null; // Silently fail if API is unavailable
+  if (error || (!isLoading && !funFact?.fact)) {
+    return null;
   }
 
   if (isLoading) {
     return (
-      <Card className="p-6 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-        <div className="flex items-start gap-4">
-          <Skeleton className="h-6 w-6 rounded-full flex-shrink-0" />
-          <div className="flex-1 space-y-2">
-            <Skeleton className="h-5 w-32" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-3/4" />
-          </div>
-        </div>
-      </Card>
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-primary/10 border border-primary/20">
+        <Skeleton className="h-4 w-4 rounded-full flex-shrink-0" />
+        <Skeleton className="h-3 w-24" />
+      </div>
     );
   }
 
-  if (!funFact?.fact) {
-    return null;
-  }
-
   return (
-    <Card className="p-6 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20 hover:shadow-lg transition-all">
-      <div className="flex items-start gap-4">
-        <div className="p-2 rounded-full bg-primary/10 flex-shrink-0">
-          <Lightbulb className="h-6 w-6 text-primary" />
-        </div>
-        <div className="flex-1">
-          <h3 className="font-semibold text-lg mb-2 text-foreground">
-            💡 Fato Curioso do Dia
-          </h3>
-          <p className="text-muted-foreground leading-relaxed">
-            {funFact.fact}
-          </p>
-          {funFact.category && (
-            <p className="text-xs text-muted-foreground mt-3 italic">
-              Categoria: {funFact.category}
+    <TooltipProvider>
+      <Tooltip delayDuration={300}>
+        <TooltipTrigger asChild>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-primary/10 border border-primary/20 cursor-help hover:bg-primary/15 transition-colors max-w-[200px] sm:max-w-[280px]">
+            <Lightbulb className="h-4 w-4 text-primary flex-shrink-0" />
+            <span className="text-xs font-medium text-foreground truncate">
+              Fato do Dia
+            </span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent 
+          side="bottom" 
+          className="max-w-sm p-4 bg-popover border border-border shadow-lg"
+          sideOffset={8}
+        >
+          <div className="space-y-2">
+            <p className="font-semibold text-sm flex items-center gap-2">
+              <span>💡</span> Fato Curioso do Dia
             </p>
-          )}
-        </div>
-      </div>
-    </Card>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {funFact?.fact}
+            </p>
+          </div>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }

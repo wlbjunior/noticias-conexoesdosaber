@@ -7,8 +7,8 @@ import { SEO } from '@/components/SEO';
 import { useInfiniteNews } from '@/hooks/useInfiniteNews';
 import { useRefreshNews } from '@/hooks/useNews';
 import { useNewsSearch } from '@/context/NewsSearchContext';
-import { FunFactWidget } from '@/components/news/FunFactWidget';
- 
+
+
 export default function NewsIndex() {
   const { query: searchQuery, setQuery: setSearchQuery } = useNewsSearch();
   const { refetch: triggerRefresh } = useRefreshNews();
@@ -66,8 +66,6 @@ export default function NewsIndex() {
           Conexões do Saber.
         </p>
       </header>
-
-      <FunFactWidget />
 
       <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
         {searchQuery && (
