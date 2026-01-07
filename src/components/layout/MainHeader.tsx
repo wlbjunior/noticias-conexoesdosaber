@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { TOPICS, topicStyles } from "@/lib/news/types";
 import { useNewsSearch } from "@/context/NewsSearchContext";
 import { NewsSearch } from "@/components/news/NewsSearch";
+import { FunFactWidget } from "@/components/news/FunFactWidget";
 
 const HEADER_LINKS = [
   { label: "Biblioteca" },
@@ -190,12 +191,13 @@ export function MainHeader() {
                 <NewsSearch value={query} onChange={setQuery} />
               </div>
 
-              {/* Botão de parcerias institucionais à direita (ou abaixo em mobile) */}
-              <div className="mt-1 flex w-full justify-start sm:mt-0 sm:w-auto sm:justify-end">
+              {/* Fato do Dia e Parcerias à direita */}
+              <div className="mt-1 flex w-full items-center justify-start gap-2 sm:mt-0 sm:w-auto sm:justify-end">
+                <FunFactWidget />
                 <Button
                   asChild
                   size="sm"
-                  className="h-9 w-full justify-center px-4 text-xs font-medium sm:w-auto"
+                  className="h-9 justify-center px-4 text-xs font-medium"
                 >
                   <a href="/news/parcerias">Parcerias institucionais</a>
                 </Button>
