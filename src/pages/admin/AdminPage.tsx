@@ -114,7 +114,7 @@ export default function AdminPage() {
   const [internalStatusFilter, setInternalStatusFilter] = useState<"all" | string>("all");
   const [internalTopicFilter, setInternalTopicFilter] = useState<"all" | InternalNews["topic"]>("all");
 
-  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
+  
   const [editingInternal, setEditingInternal] = useState<InternalNews | null>(null);
   const [viewingInternal, setViewingInternal] = useState<InternalNews | null>(null);
   const [deletingInternal, setDeletingInternal] = useState<InternalNews | null>(null);
@@ -415,28 +415,11 @@ export default function AdminPage() {
  
     try {
       setAuthLoading(true);
- 
-      if (authMode === "signup") {
-        const redirectUrl = `${window.location.origin}/admin`;
-        const { error } = await supabase.auth.signUp({
-          email: data.email,
-          password: data.password,
-          options: {
-            emailRedirectTo: redirectUrl,
-          },
-        });
-        if (error) throw error;
-        toast({
-          title: "Conta criada",
-          description: "Verifique seu e-mail para confirmar o acesso administrativo.",
-        });
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email: data.email,
-          password: data.password,
-        });
-        if (error) throw error;
-      }
+      const { error } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+      });
+      if (error) throw error;
     } catch (error) {
       console.error("[Admin] Erro na autenticação", error);
       toast({
@@ -531,69 +514,33 @@ export default function AdminPage() {
           </p>
         </header>
 
-        <Tabs value={authMode} onValueChange={(v) => setAuthMode(v as "login" | "signup")}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="login">Entrar</TabsTrigger>
-            <TabsTrigger value="signup">Criar conta</TabsTrigger>
-          </TabsList>
-          <TabsContent value="login" className="mt-4">
-            <form onSubmit={authForm.handleSubmit(handleAuthSubmit)} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">E-mail administrativo</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  {...authForm.register("email")}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Senha</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  autoComplete="current-password"
-                  {...authForm.register("password")}
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={authLoading}>
-                {authLoading ? "Entrando..." : "Entrar"}
-              </Button>
-              <p className="flex items-center justifycenter gap-1 text-xs text-muted-foreground">
-                <Mail className="h-3 w-3" aria-hidden="true" />
-                Use sempre o e-mail cadastrado para administração do Boletim.
-              </p>
-            </form>
-          </TabsContent>
-          <TabsContent value="signup" className="mt-4">
-            <form onSubmit={authForm.handleSubmit(handleAuthSubmit)} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email-signup">E-mail administrativo</Label>
-                <Input
-                  id="email-signup"
-                  type="email"
-                  autoComplete="email"
-                  {...authForm.register("email")}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password-signup">Senha</Label>
-                <Input
-                  id="password-signup"
-                  type="password"
-                  autoComplete="new-password"
-                  {...authForm.register("password")}
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={authLoading}>
-                {authLoading ? "Criando conta..." : "Criar conta"}
-              </Button>
-              <p className="text-xs text-muted-foreground">
-                Após criar a conta, confirme o e-mail para ter acesso completo à área administrativa.
-              </p>
-            </form>
-          </TabsContent>
-        </Tabs>
+        <form onSubmit={authForm.handleSubmit(handleAuthSubmit)} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="email">E-mail administrativo</Label>
+            <Input
+              id="email"
+              type="email"
+              autoComplete="email"
+              {...authForm.register("email")}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="password">Senha</Label>
+            <Input
+              id="password"
+              type="password"
+              autoComplete="current-password"
+              {...authForm.register("password")}
+            />
+          </div>
+          <Button type="submit" className="w-full" disabled={authLoading}>
+            {authLoading ? "Entrando..." : "Entrar"}
+          </Button>
+          <p className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
+            <Mail className="h-3 w-3" aria-hidden="true" />
+            Use sempre o e-mail cadastrado para administração do Boletim.
+          </p>
+        </form>
 
         <Alert variant="default">
           <ShieldAlert className="h-4 w-4" aria-hidden="true" />
