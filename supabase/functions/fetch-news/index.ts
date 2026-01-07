@@ -294,6 +294,11 @@ async function fetchGoogleNewsRss(topic: Topic): Promise<NewsArticle[]> {
   }));
 }
 
+// Helper function to add delay between API calls
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 async function isRelevantArticleForTopic(article: NewsArticle, topic: Topic): Promise<{ isRelevant: boolean; rawAnswer: string | null }> {
   try {
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
@@ -390,7 +395,14 @@ serve(async (req: Request) => {
       await supabase.from("news").delete().eq("topic", topic);
 
       let added = 0;
+      let aiCallCount = 0;
       for (const article of articles) {
+        // Add delay between AI calls to avoid rate limiting (1.5 seconds between each)
+        if (aiCallCount > 0) {
+          await delay(1500);
+        }
+        aiCallCount++;
+        
         const { isRelevant, rawAnswer } = await isRelevantArticleForTopic(article, topic);
         if (!isRelevant) {
           const { error: discardError } = await supabase
