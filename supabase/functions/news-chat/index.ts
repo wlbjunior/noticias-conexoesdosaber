@@ -38,7 +38,7 @@ serve(async (req) => {
       .from("news")
       .select("title, topic, description, source_name, source_url, published_at")
       .order("published_at", { ascending: false })
-      .limit(20);
+      .limit(10);
 
     const newsContext = recentNews
       ?.map((n) =>
