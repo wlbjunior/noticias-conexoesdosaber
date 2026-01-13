@@ -87,22 +87,28 @@ export default function NewsDetail() {
           </Card>
         )}
 
-        <div className="flex gap-4">
-          <Button asChild size="lg">
-            <a href={news.source_url} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="w-4 h-4 mr-2" />
-              Ler artigo completo na fonte
-            </a>
-          </Button>
-          {news.full_article_url && news.full_article_url !== news.source_url && (
-            <Button variant="outline" asChild size="lg">
-              <a href={news.full_article_url} target="_blank" rel="noopener noreferrer">
+        {news.source_url ? (
+          <div className="flex gap-4">
+            <Button asChild size="lg">
+              <a href={news.source_url} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="w-4 h-4 mr-2" />
-                Link alternativo
+                Ler artigo completo na fonte
               </a>
             </Button>
-          )}
-        </div>
+            {news.full_article_url && news.full_article_url !== news.source_url && (
+              <Button variant="outline" asChild size="lg">
+                <a href={news.full_article_url} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  Link alternativo
+                </a>
+              </Button>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground italic">
+            Esta é uma notícia interna do Boletim.
+          </p>
+        )}
       </article>
     </div>
   );
