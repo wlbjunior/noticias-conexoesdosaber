@@ -11,6 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useToast } from '@/hooks/use-toast';
 import { Topic, TOPICS, topicStyles } from '@/lib/news/types';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 
 const newsletterSchema = z.object({
   email: z.string().email('Por favor, insira um e-mail válido'),
@@ -38,7 +39,7 @@ export function NewsletterForm() {
 
   async function onSubmit(data: NewsletterFormData) {
     setIsSubmitting(true);
-    console.log('[NewsletterForm] Submitting', data);
+    logger.log('[NewsletterForm] Submitting', { email: data.email, topicsCount: data.topics.length });
 
     try {
       const selectedTopics = data.allTopics ? TOPICS : (data.topics as Topic[]);
@@ -54,14 +55,14 @@ export function NewsletterForm() {
         throw error;
       }
 
-      console.log('[NewsletterForm] Success');
+      logger.log('[NewsletterForm] Success');
       setIsSuccess(true);
       toast({
         title: 'Cadastro realizado!',
         description: 'Verifique seu e-mail para confirmar a inscrição.',
       });
     } catch (error) {
-      console.error('[NewsletterForm] Error', error);
+      logger.error('[NewsletterForm] Error', error);
       toast({
         title: 'Erro ao cadastrar',
         description: 'Ocorreu um erro ao processar sua inscrição. Tente novamente.',

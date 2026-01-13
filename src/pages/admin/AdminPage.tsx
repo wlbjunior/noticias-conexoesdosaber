@@ -23,6 +23,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { CalendarIcon, Loader2, ShieldAlert, Mail, RefreshCw, FileText, Plus, Edit3, Trash2, Send } from "lucide-react";
+import { logger } from "@/lib/logger";
 
 const adminEmail = "wlbjunior@gmail.com";
 
@@ -170,7 +171,7 @@ export default function AdminPage() {
           { onConflict: "user_id,role" },
         );
       } catch (error) {
-        console.error("[Admin] Erro ao garantir role de admin", error);
+        logger.error("[Admin] Erro ao garantir role de admin", error);
       }
 
       setIsAdmin(true);
@@ -221,7 +222,7 @@ export default function AdminPage() {
       setInternalNews((internalNewsRes.data || []) as InternalNews[]);
       setDiscardedNews((discardedNewsRes.data || []) as DiscardedNews[]);
     } catch (error) {
-      console.error("[Admin] Erro ao carregar dados administrativos", error);
+      logger.error("[Admin] Erro ao carregar dados administrativos", error);
       toast({
         title: "Erro ao carregar dados",
         description: "Não foi possível carregar as mensagens ou estatísticas.",
@@ -273,7 +274,7 @@ export default function AdminPage() {
         description: "O status da mensagem foi atualizado com sucesso.",
       });
     } catch (error) {
-      console.error("[Admin] Erro ao atualizar status", error);
+      logger.error("[Admin] Erro ao atualizar status", error);
       toast({
         title: "Erro ao atualizar status",
         description: "Não foi possível atualizar o status. Tente novamente.",
@@ -361,7 +362,7 @@ export default function AdminPage() {
       });
       resetInternalForm();
     } catch (error) {
-      console.error("[Admin] Erro ao salvar notícia interna", error);
+      logger.error("[Admin] Erro ao salvar notícia interna", error);
       toast({
         title: "Erro ao salvar notícia interna",
         description: "Não foi possível salvar a notícia interna. Tente novamente.",
@@ -399,7 +400,7 @@ export default function AdminPage() {
         description: "A notícia interna foi removida com sucesso.",
       });
     } catch (error) {
-      console.error("[Admin] Erro ao excluir notícia interna", error);
+      logger.error("[Admin] Erro ao excluir notícia interna", error);
       toast({
         title: "Erro ao excluir notícia interna",
         description: "Não foi possível excluir a notícia interna. Tente novamente.",
@@ -426,7 +427,7 @@ export default function AdminPage() {
       });
       if (error) throw error;
     } catch (error) {
-      console.error("[Admin] Erro na autenticação", error);
+      logger.error("[Admin] Erro na autenticação", error);
       toast({
         title: "Erro na autenticação",
         description: "Não foi possível acessar. Verifique seus dados e tente novamente.",
@@ -452,7 +453,7 @@ export default function AdminPage() {
           "O processo de atualização de notícias foi disparado. Aguarde alguns instantes e atualize a página do Boletim.",
       });
     } catch (error) {
-      console.error("[Admin] Erro ao rodar atualização de notícias", error);
+      logger.error("[Admin] Erro ao rodar atualização de notícias", error);
       toast({
         title: "Erro ao atualizar notícias",
         description: "Não foi possível rodar a atualização agora. Tente novamente em instantes.",
@@ -481,7 +482,7 @@ export default function AdminPage() {
             : "A função foi executada. Verifique os logs e sua caixa de entrada para confirmar os envios.",
       });
     } catch (error) {
-      console.error("[Admin] Erro ao enviar newsletter manualmente", error);
+      logger.error("[Admin] Erro ao enviar newsletter manualmente", error);
       toast({
         title: "Erro ao enviar newsletter",
         description: "Não foi possível disparar o envio agora. Tente novamente em instantes.",
@@ -1051,7 +1052,7 @@ export default function AdminPage() {
                                   "A notícia foi restaurada e voltará a aparecer na listagem principal do Boletim.",
                               });
                             } catch (error) {
-                              console.error("[Admin] Erro ao restaurar notícia descartada", error);
+                              logger.error("[Admin] Erro ao restaurar notícia descartada", error);
                               toast({
                                 title: "Erro ao restaurar notícia",
                                 description: "Não foi possível restaurar a notícia. Tente novamente.",

@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { NewsItem, Topic } from '@/lib/news/types';
+import { logger } from '@/lib/logger';
 
 export function useNews(topic?: Topic) {
   return useQuery({
     queryKey: ['news', topic],
     queryFn: async () => {
-      console.log('[useNews] Fetching news', { topic });
+      logger.log('[useNews] Fetching news', { topic });
       
       let query = supabase
         .from('news')
@@ -22,11 +23,11 @@ export function useNews(topic?: Topic) {
       const { data, error } = await query;
       
       if (error) {
-        console.error('[useNews] Error', error);
+        logger.error('[useNews] Error', error);
         throw error;
       }
       
-      console.log('[useNews] Success', { count: data?.length });
+      logger.log('[useNews] Success', { count: data?.length });
       return data as NewsItem[];
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
@@ -37,7 +38,7 @@ export function useNewsById(id: string) {
   return useQuery({
     queryKey: ['news', 'detail', id],
     queryFn: async () => {
-      console.log('[useNewsById] Fetching', { id });
+      logger.log('[useNewsById] Fetching', { id });
       
       const { data, error } = await supabase
         .from('news')
@@ -46,11 +47,11 @@ export function useNewsById(id: string) {
         .maybeSingle();
       
       if (error) {
-        console.error('[useNewsById] Error', error);
+        logger.error('[useNewsById] Error', error);
         throw error;
       }
       
-      console.log('[useNewsById] Success', data);
+      logger.log('[useNewsById] Success', data);
       return data as NewsItem | null;
     },
   });
@@ -60,7 +61,7 @@ export function useRefreshNews() {
   return useQuery({
     queryKey: ['news', 'refresh'],
     queryFn: async () => {
-      console.log('[useRefreshNews] Checking refresh status');
+      logger.log('[useRefreshNews] Checking refresh status');
       
       const { data: control } = await supabase
         .from('news_refresh_control')
@@ -73,7 +74,7 @@ export function useRefreshNews() {
         const now = new Date();
         const diffMinutes = (now.getTime() - lastRefresh.getTime()) / 1000 / 60;
         
-        console.log('[useRefreshNews] Last refresh was', diffMinutes.toFixed(0), 'minutes ago');
+        logger.log('[useRefreshNews] Last refresh was', diffMinutes.toFixed(0), 'minutes ago');
       }
       
       // News refresh is handled by cron job with NEWS_REFRESH_SECRET

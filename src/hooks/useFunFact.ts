@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 
 export interface FunFact {
   fact: string;
@@ -11,16 +12,16 @@ export function useFunFact() {
   return useQuery({
     queryKey: ['fun-fact'],
     queryFn: async () => {
-      console.log('[useFunFact] Fetching daily fun fact');
+      logger.log('[useFunFact] Fetching daily fun fact');
 
       const { data, error } = await supabase.functions.invoke('fetch-fun-fact');
 
       if (error) {
-        console.error('[useFunFact] Error', error);
+        logger.error('[useFunFact] Error', error);
         throw error;
       }
 
-      console.log('[useFunFact] Success', data);
+      logger.log('[useFunFact] Success', data);
       return data.fact as FunFact;
     },
     staleTime: 1000 * 60 * 60 * 24, // 24 hours - refresh once per day

@@ -7,10 +7,11 @@ import { SEO } from '@/components/SEO';
 import { useInfiniteNews } from '@/hooks/useInfiniteNews';
 import { useRefreshNews } from '@/hooks/useNews';
 import { useNewsSearch } from '@/context/NewsSearchContext';
+import { logger } from '@/lib/logger';
 
 
 export default function NewsIndex() {
-  const { query: searchQuery, setQuery: setSearchQuery } = useNewsSearch();
+  const { query: searchQuery } = useNewsSearch();
   const { refetch: triggerRefresh } = useRefreshNews();
   
   const { 
@@ -24,7 +25,7 @@ export default function NewsIndex() {
   } = useInfiniteNews(undefined, searchQuery);
 
   useEffect(() => {
-    console.log('[NewsIndex] Mounted, checking for refresh');
+    logger.log('[NewsIndex] Mounted, checking for refresh');
     triggerRefresh();
   }, [triggerRefresh]);
 
