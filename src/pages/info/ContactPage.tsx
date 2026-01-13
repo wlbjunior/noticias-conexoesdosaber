@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { SEO } from "@/components/SEO";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -55,8 +56,16 @@ export function ContactPage({ mode }: ContactPageProps) {
   const onSubmit = async (data: ContactFormData) => {
     setIsSubmitting(true);
     try {
-      // Futuramente: enviar para área administrativa (backend)
-      console.log("[ContactForm] Nova mensagem", { mode, data });
+      const { error } = await supabase.from("contact_messages").insert({
+        name: data.name,
+        email: data.email,
+        subject: data.subject,
+        message: data.message,
+        type: mode,
+      });
+
+      if (error) throw error;
+
       toast({
         title: "Mensagem enviada",
         description: "Sua mensagem foi registrada e será encaminhada para a área administrativa.",

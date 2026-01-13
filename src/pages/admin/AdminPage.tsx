@@ -123,6 +123,7 @@ export default function AdminPage() {
   const [internalTopic, setInternalTopic] = useState<InternalNews["topic"]>("mitologia");
   const [internalStatus, setInternalStatus] = useState<string>("rascunho");
   const [internalDate, setInternalDate] = useState<Date | null>(null);
+  const [internalPinned, setInternalPinned] = useState(false);
 
   const authForm = useForm<AuthFormData>({
     resolver: zodResolver(authSchema),
@@ -288,6 +289,7 @@ export default function AdminPage() {
     setInternalTopic("mitologia");
     setInternalStatus("rascunho");
     setInternalDate(null);
+    setInternalPinned(false);
   };
 
   const handleSaveInternalNews = async () => {
@@ -307,6 +309,7 @@ export default function AdminPage() {
       body: string;
       status: string;
       published_at: string | null;
+      is_pinned: boolean;
     } = {
       title: internalTitle.trim(),
       body: internalBody.trim(),
@@ -315,6 +318,7 @@ export default function AdminPage() {
       published_at: isPublishing
         ? (internalDate ? internalDate.toISOString() : new Date().toISOString())
         : null,
+      is_pinned: internalPinned,
     };
 
     try {
@@ -373,6 +377,7 @@ export default function AdminPage() {
     setInternalTopic(item.topic);
     setInternalStatus(item.status);
     setInternalDate(item.published_at ? new Date(item.published_at) : null);
+    setInternalPinned(item.is_pinned);
   };
 
   const handleDeleteInternalConfirmed = async () => {
@@ -1174,13 +1179,8 @@ export default function AdminPage() {
                       id="internal-pinned"
                       type="checkbox"
                       className="h-4 w-4 rounded border-border bg-background"
-                      checked={editingInternal?.is_pinned ?? false}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        setInternalNews((prev) =>
-                          prev.map((n) => (n.id === editingInternal?.id ? { ...n, is_pinned: checked } : n)),
-                        );
-                      }}
+                      checked={internalPinned}
+                      onChange={(e) => setInternalPinned(e.target.checked)}
                     />
                     <Label htmlFor="internal-pinned" className="text-xs">
                       Fixar no topo do Boletim
