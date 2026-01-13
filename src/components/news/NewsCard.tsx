@@ -127,10 +127,6 @@ function NewsCardComponent({ news, showTopic = true, animationDelay = 0 }: NewsC
   );
 }
 
-export const NewsCard = memo(NewsCardComponent, (prevProps, nextProps) => {
-  return (
-    prevProps.news.id === nextProps.news.id &&
-    prevProps.showTopic === nextProps.showTopic &&
-    prevProps.animationDelay === nextProps.animationDelay
-  );
+export const NewsCard = memo(function NewsCard({ news, showTopic = true, animationDelay = 0 }: NewsCardProps) {
+  return <NewsCardComponent news={news} showTopic={showTopic} animationDelay={animationDelay} />;
 });
