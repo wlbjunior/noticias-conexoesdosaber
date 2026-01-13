@@ -1,6 +1,7 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { NewsItem, Topic } from "@/lib/news/types";
+import { logger } from "@/lib/logger";
 
 const PAGE_SIZE = 12;
 
@@ -8,7 +9,7 @@ export function useInfiniteNews(topic?: Topic, searchQuery?: string) {
   return useInfiniteQuery({
     queryKey: ["news", "infinite", topic, searchQuery],
     queryFn: async ({ pageParam = 0 }) => {
-      console.log("[useInfiniteNews] Fetching page", { pageParam, topic, searchQuery });
+      logger.log("[useInfiniteNews] Fetching page", { pageParam, topic, searchQuery });
 
       let externalQuery = supabase
         .from("news")
@@ -27,7 +28,7 @@ export function useInfiniteNews(topic?: Topic, searchQuery?: string) {
       const { data: externalData, error: externalError } = await externalQuery;
 
       if (externalError) {
-        console.error("[useInfiniteNews] Error (external)", externalError);
+        logger.error("[useInfiniteNews] Error (external)", externalError);
         throw externalError;
       }
 
@@ -49,7 +50,7 @@ export function useInfiniteNews(topic?: Topic, searchQuery?: string) {
         const { data: internalData, error: internalError } = await internalQuery;
 
         if (internalError) {
-          console.error("[useInfiniteNews] Error (internal)", internalError);
+          logger.error("[useInfiniteNews] Error (internal)", internalError);
         } else if (internalData) {
           internalNews = internalData.map((item: any) => ({
             id: item.id,
@@ -80,7 +81,7 @@ export function useInfiniteNews(topic?: Topic, searchQuery?: string) {
         return new Date(b.published_at).getTime() - new Date(a.published_at).getTime();
       });
 
-      console.log("[useInfiniteNews] Success", {
+      logger.log("[useInfiniteNews] Success", {
         externalCount: externalData?.length,
         internalCount: internalNews.length,
         totalCount: allNews.length,
