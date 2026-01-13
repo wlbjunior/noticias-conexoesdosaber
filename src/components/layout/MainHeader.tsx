@@ -198,7 +198,7 @@ export function MainHeader() {
                   size="sm"
                   className="h-9 justify-center px-4 text-xs font-medium"
                 >
-                  <a href="/news/parcerias">Parcerias institucionais</a>
+                  <Link to="/news/parcerias">Parcerias institucionais</Link>
                 </Button>
               </div>
             </div>

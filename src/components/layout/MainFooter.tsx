@@ -86,15 +86,17 @@ export function MainFooter() {
           {/* Coluna 3 – Recursos */}
           <div className="space-y-4">
             <h2 className="text-sm font-semibold text-foreground">Recursos</h2>
-            <ul className="space-y-2 text-sm text-muted-foreground">
+            <ul className="space-y-2 text-sm text-muted-foreground" role="list">
               {RESOURCE_LINKS.map((label) => (
                 <li key={label}>
-                  <button
-                    type="button"
-                    className="w-full text-left transition-colors hover:text-foreground"
+                  <span
+                    className="inline-flex items-center gap-1 cursor-not-allowed opacity-60"
+                    title="Em breve"
+                    aria-label={`${label} - em breve`}
                   >
                     {label}
-                  </button>
+                    <span className="text-[10px] text-muted-foreground/70">(em breve)</span>
+                  </span>
                 </li>
               ))}
               {EXTERNAL_LINKS.map((item) => (

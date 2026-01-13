@@ -11,11 +11,12 @@ export function TopicNav() {
 
   return (
     <ScrollArea className="w-full whitespace-nowrap">
-      <nav className="flex items-center gap-2 py-2">
+      <nav className="flex items-center gap-2 py-2" aria-label="Navegação por temas">
         <Link
           to="/news"
+          aria-current={isActive('/news') ? 'page' : undefined}
           className={cn(
-            'px-4 py-2 rounded-full text-sm font-medium transition-all duration-200',
+            'px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
             isActive('/news')
               ? 'bg-primary text-primary-foreground'
               : 'bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground'
@@ -32,8 +33,9 @@ export function TopicNav() {
             <Link
               key={topic}
               to={path}
+              aria-current={active ? 'page' : undefined}
               className={cn(
-                'px-4 py-2 rounded-full text-sm font-medium transition-all duration-200',
+                'px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                 active
                   ? `${style.bgClass} ${style.textClass} ring-2 ring-offset-2 ring-offset-background`
                   : 'bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground'
