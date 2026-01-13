@@ -1,4 +1,4 @@
-import type React from 'react';
+import React, { memo } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ExternalLink } from 'lucide-react';
@@ -26,7 +26,7 @@ function isUnsafeUrl(url: string): boolean {
   }
 }
 
-export function NewsCard({ news, showTopic = true, animationDelay = 0 }: NewsCardProps) {
+function NewsCardComponent({ news, showTopic = true, animationDelay = 0 }: NewsCardProps) {
   const topicStyle = getTopicStyle(news.topic);
   const publishedDate = new Date(news.published_at);
   const { trackClick } = useNewsClick();
@@ -126,3 +126,11 @@ export function NewsCard({ news, showTopic = true, animationDelay = 0 }: NewsCar
     </Card>
   );
 }
+
+export const NewsCard = memo(NewsCardComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.news.id === nextProps.news.id &&
+    prevProps.showTopic === nextProps.showTopic &&
+    prevProps.animationDelay === nextProps.animationDelay
+  );
+});
