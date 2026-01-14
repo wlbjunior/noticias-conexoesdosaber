@@ -63,7 +63,7 @@ export function MainHeader() {
             className="flex items-center gap-3 rounded-md px-1 py-1 text-base font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <img src={logo} alt="Conexões do Saber" className="h-9 w-9 object-contain" />
-            <span className="hidden text-sm sm:inline-block">Conexões do Saber</span>
+            <span className="hidden whitespace-nowrap text-sm sm:inline-block">Conexões do Saber</span>
           </Link>
 
           <nav className="hidden flex-1 items-center justify-center gap-6 lg:flex">
