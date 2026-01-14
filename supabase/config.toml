@@ -1,1 +1,4 @@
 project_id = "yfyhpgskbvtfjkyiyuwj"
+
+[functions.cleanup-discarded-news]
+verify_jwt = false
