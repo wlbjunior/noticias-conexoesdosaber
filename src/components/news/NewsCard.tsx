@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ExternalLink, Clock } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -34,8 +34,6 @@ function NewsCardComponent({ news, showTopic = true, animationDelay = 0, variant
   const { trackClick } = useNewsClick();
   const { toast } = useToast();
 
-  // Calculate reading time
-  const readingTime = Math.max(2, Math.ceil((news.description?.length || 100) / 200));
 
   const handleSourceClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     if (!news.source_url) return;
@@ -121,15 +119,11 @@ function NewsCardComponent({ news, showTopic = true, animationDelay = 0, variant
         
         {/* Description removed per user request */}
         
-        {/* Meta info */}
-        <div className="flex items-center gap-3 text-xs text-muted-foreground mt-3">
+        {/* Published date */}
+        <div className="text-xs text-muted-foreground mt-3">
           <time dateTime={news.published_at}>
             {format(publishedDate, "dd MMM yyyy", { locale: ptBR })}
           </time>
-          <span className="flex items-center gap-1">
-            <Clock className="w-3 h-3" />
-            {readingTime} min
-          </span>
         </div>
       </CardHeader>
 
