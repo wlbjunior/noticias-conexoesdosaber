@@ -91,7 +91,7 @@ export function NewsChat() {
     return (
       <Button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50"
+        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50 animate-glow transition-all duration-300 hover:scale-110 hover:shadow-xl"
         size="icon"
         aria-label="Abrir chat de notícias"
       >
@@ -101,16 +101,18 @@ export function NewsChat() {
   }
 
   return (
-    <Card className="fixed bottom-6 right-6 w-[360px] h-[500px] shadow-xl z-50 flex flex-col">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 border-b">
+    <Card className="fixed bottom-6 right-6 w-[360px] h-[500px] shadow-2xl z-50 flex flex-col overflow-hidden border-border/50 animate-scale-in">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 border-b bg-gradient-to-r from-primary/5 to-primary/10">
         <CardTitle className="text-base flex items-center gap-2">
-          <Bot className="w-5 h-5" aria-hidden="true" />
+          <div className="p-1.5 rounded-full bg-primary/10">
+            <Bot className="w-5 h-5 text-primary" aria-hidden="true" />
+          </div>
           Chat de Notícias
         </CardTitle>
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8"
+          className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive transition-colors"
           onClick={() => setIsOpen(false)}
           aria-label="Fechar chat"
         >

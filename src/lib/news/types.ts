@@ -17,13 +17,60 @@ export interface NewsItem {
 export const TOPICS: Topic[] = ['mitologia', 'filosofia', 'religiao', 'artes', 'psicologia'];
 
 export const topicStyles = {
-  mitologia: { color: 'hsl(210, 100%, 56%)', bgClass: 'bg-blue-500/10', textClass: 'text-blue-500', borderClass: 'border-blue-500', label: 'Mitologia' },
-  filosofia: { color: 'hsl(39, 100%, 50%)', bgClass: 'bg-orange-500/10', textClass: 'text-orange-500', borderClass: 'border-orange-500', label: 'Filosofia' },
-  religiao: { color: 'hsl(0, 0%, 50%)', bgClass: 'bg-gray-500/10', textClass: 'text-gray-500', borderClass: 'border-gray-500', label: 'Religião' },
-  artes: { color: 'hsl(330, 100%, 71%)', bgClass: 'bg-pink-400/10', textClass: 'text-pink-400', borderClass: 'border-pink-400', label: 'Artes' },
-  psicologia: { color: 'hsl(120, 61%, 50%)', bgClass: 'bg-green-500/10', textClass: 'text-green-500', borderClass: 'border-green-500', label: 'Psicologia' },
+  mitologia: { 
+    color: 'hsl(230, 80%, 55%)', 
+    bgClass: 'bg-mitologia/10', 
+    textClass: 'text-mitologia', 
+    borderClass: 'border-mitologia', 
+    gradientClass: 'gradient-mitologia',
+    shadowClass: 'shadow-glow-mitologia',
+    label: 'Mitologia',
+    icon: '⚡'
+  },
+  filosofia: { 
+    color: 'hsl(35, 90%, 55%)', 
+    bgClass: 'bg-filosofia/10', 
+    textClass: 'text-filosofia', 
+    borderClass: 'border-filosofia', 
+    gradientClass: 'gradient-filosofia',
+    shadowClass: 'shadow-glow-filosofia',
+    label: 'Filosofia',
+    icon: '💭'
+  },
+  religiao: { 
+    color: 'hsl(250, 60%, 55%)', 
+    bgClass: 'bg-religiao/10', 
+    textClass: 'text-religiao', 
+    borderClass: 'border-religiao', 
+    gradientClass: 'gradient-religiao',
+    shadowClass: 'shadow-glow-religiao',
+    label: 'Religião',
+    icon: '⛪'
+  },
+  artes: { 
+    color: 'hsl(340, 80%, 60%)', 
+    bgClass: 'bg-artes/10', 
+    textClass: 'text-artes', 
+    borderClass: 'border-artes', 
+    gradientClass: 'gradient-artes',
+    shadowClass: 'shadow-glow-artes',
+    label: 'Artes',
+    icon: '🎨'
+  },
+  psicologia: { 
+    color: 'hsl(160, 70%, 40%)', 
+    bgClass: 'bg-psicologia/10', 
+    textClass: 'text-psicologia', 
+    borderClass: 'border-psicologia', 
+    gradientClass: 'gradient-psicologia',
+    shadowClass: 'shadow-glow-psicologia',
+    label: 'Psicologia',
+    icon: '🧠'
+  },
 } as const;
 
-export function getTopicStyle(topic: Topic) {
+export type TopicStyle = typeof topicStyles[Topic];
+
+export function getTopicStyle(topic: Topic): TopicStyle {
   return topicStyles[topic];
 }

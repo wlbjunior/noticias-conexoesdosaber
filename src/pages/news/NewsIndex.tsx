@@ -3,6 +3,8 @@ import { RefreshCw, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { NewsList } from '@/components/news/NewsList';
+import { HeroNews } from '@/components/news/HeroNews';
+import { HeroNewsSkeleton } from '@/components/news/NewsCardSkeleton';
 import { SEO } from '@/components/SEO';
 import { useInfiniteNews } from '@/hooks/useInfiniteNews';
 import { useRefreshNews } from '@/hooks/useNews';
@@ -33,11 +35,15 @@ export default function NewsIndex() {
     return data?.pages.flatMap(page => page.news) || [];
   }, [data]);
 
+  // Get hero news (most recent) and remaining news
+  const heroNews = !searchQuery && allNews.length > 0 ? allNews[0] : null;
+  const remainingNews = heroNews ? allNews.slice(1) : allNews;
+
   if (error) {
     return (
       <div className="space-y-6">
         <SEO title="Todas as Notícias" />
-        <h1 className="text-3xl font-bold">Todas as Notícias</h1>
+        <h1 className="font-serif text-3xl font-bold">Todas as Notícias</h1>
         <Alert variant="destructive" role="alert">
           <AlertCircle className="h-4 w-4" aria-hidden="true" />
           <AlertTitle>Erro</AlertTitle>
@@ -54,30 +60,35 @@ export default function NewsIndex() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6">
       <SEO
         title="Boletim – Todas as Notícias"
         description="Boletim, comunidade interna da plataforma Conexões do Saber, reúne as últimas notícias sobre Mitologia, Filosofia, Religião, Artes e Psicologia."
       />
 
-      <header>
-        <h1 className="text-3xl font-bold">Boletim – Todas as Notícias</h1>
+      {/* Hero Section - only show when not searching */}
+      {!searchQuery && (
+        isLoading ? (
+          <HeroNewsSkeleton />
+        ) : heroNews ? (
+          <HeroNews news={heroNews} />
+        ) : null
+      )}
+
+      <header className="animate-fade-in">
+        <h1 className="font-serif text-3xl font-bold">
+          {searchQuery ? 'Resultados da Busca' : 'Últimas Notícias'}
+        </h1>
         <p className="text-muted-foreground mt-2">
-          Explore as últimas notícias temáticas do Boletim, a área de comunidade e atualização contínua da plataforma
-          Conexões do Saber.
+          {searchQuery 
+            ? `${allNews.length} ${allNews.length === 1 ? 'resultado' : 'resultados'} para "${searchQuery}"`
+            : 'Explore as últimas notícias temáticas do Boletim'
+          }
         </p>
       </header>
-
-      <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-        {searchQuery && (
-          <p className="text-sm text-muted-foreground" role="status" aria-live="polite">
-            {allNews.length} {allNews.length === 1 ? 'resultado' : 'resultados'} para "{searchQuery}"
-          </p>
-        )}
-      </div>
       
       <NewsList 
-        news={allNews} 
+        news={remainingNews} 
         isLoading={isLoading} 
         showTopic={true}
         hasNextPage={hasNextPage}

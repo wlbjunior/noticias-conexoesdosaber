@@ -114,20 +114,24 @@ export function ReadingStats() {
   }
 
   return (
-    <Card className="mt-4 border-border bg-card/70 shadow-sm backdrop-blur">
+    <Card className="mt-4 border-border/50 bg-gradient-to-br from-card to-card/80 shadow-sm backdrop-blur overflow-hidden">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-          <BarChart3 className="h-4 w-4" aria-hidden="true" />
+          <div className="p-1.5 rounded-full bg-primary/10">
+            <BarChart3 className="h-4 w-4 text-primary" aria-hidden="true" />
+          </div>
           Estatísticas de Leitura
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-5">
-        {/* Total clicks */}
-        <div className="flex items-center gap-3 rounded-md bg-background/70 p-3">
-          <MousePointerClick className="h-7 w-7 text-primary" aria-hidden="true" />
+        {/* Total clicks with animated counter effect */}
+        <div className="flex items-center gap-3 rounded-lg bg-gradient-to-r from-primary/5 to-primary/10 p-4 border border-primary/10">
+          <div className="p-2 rounded-full bg-primary/10">
+            <MousePointerClick className="h-6 w-6 text-primary" aria-hidden="true" />
+          </div>
           <div>
-            <p className="text-xl font-bold leading-none">{totalClicks}</p>
-            <p className="text-[11px] text-muted-foreground">cliques totais</p>
+            <p className="text-2xl font-bold leading-none text-primary">{totalClicks}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">cliques totais</p>
           </div>
         </div>
 
