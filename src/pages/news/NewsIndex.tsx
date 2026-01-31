@@ -6,6 +6,7 @@ import { NewsList } from '@/components/news/NewsList';
 import { HeroNews } from '@/components/news/HeroNews';
 import { HeroNewsSkeleton } from '@/components/news/NewsCardSkeleton';
 import { SEO } from '@/components/SEO';
+import { PageTransition } from '@/components/layout/PageTransition';
 import { useInfiniteNews } from '@/hooks/useInfiniteNews';
 import { useRefreshNews } from '@/hooks/useNews';
 import { useNewsSearch } from '@/context/NewsSearchContext';
@@ -41,60 +42,64 @@ export default function NewsIndex() {
 
   if (error) {
     return (
-      <div className="space-y-6">
-        <SEO title="Todas as Notícias" />
-        <h1 className="font-serif text-3xl font-bold">Todas as Notícias</h1>
-        <Alert variant="destructive" role="alert">
-          <AlertCircle className="h-4 w-4" aria-hidden="true" />
-          <AlertTitle>Erro</AlertTitle>
-          <AlertDescription className="flex items-center justify-between">
-            <span>Não foi possível carregar as notícias. Tente novamente em alguns instantes.</span>
-            <Button variant="outline" size="sm" onClick={() => refetch()}>
-              <RefreshCw className="w-4 h-4 mr-2" aria-hidden="true" />
-              Tentar novamente
-            </Button>
-          </AlertDescription>
-        </Alert>
-      </div>
+      <PageTransition>
+        <div className="space-y-6">
+          <SEO title="Todas as Notícias" />
+          <h1 className="font-serif text-3xl font-bold">Todas as Notícias</h1>
+          <Alert variant="destructive" role="alert">
+            <AlertCircle className="h-4 w-4" aria-hidden="true" />
+            <AlertTitle>Erro</AlertTitle>
+            <AlertDescription className="flex items-center justify-between">
+              <span>Não foi possível carregar as notícias. Tente novamente em alguns instantes.</span>
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                <RefreshCw className="w-4 h-4 mr-2" aria-hidden="true" />
+                Tentar novamente
+              </Button>
+            </AlertDescription>
+          </Alert>
+        </div>
+      </PageTransition>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <SEO
-        title="Boletim – Todas as Notícias"
-        description="Boletim, comunidade interna da plataforma Conexões do Saber, reúne as últimas notícias sobre Mitologia, Filosofia, Religião, Artes e Psicologia."
-      />
+    <PageTransition>
+      <div className="space-y-6">
+        <SEO
+          title="Boletim – Todas as Notícias"
+          description="Boletim, comunidade interna da plataforma Conexões do Saber, reúne as últimas notícias sobre Mitologia, Filosofia, Religião, Artes e Psicologia."
+        />
 
-      {/* Hero Section - only show when not searching */}
-      {!searchQuery && (
-        isLoading ? (
-          <HeroNewsSkeleton />
-        ) : heroNews ? (
-          <HeroNews news={heroNews} />
-        ) : null
-      )}
+        {/* Hero Section - only show when not searching */}
+        {!searchQuery && (
+          isLoading ? (
+            <HeroNewsSkeleton />
+          ) : heroNews ? (
+            <HeroNews news={heroNews} />
+          ) : null
+        )}
 
-      <header className="animate-fade-in">
-        <h1 className="font-serif text-3xl font-bold">
-          {searchQuery ? 'Resultados da Busca' : 'Últimas Notícias'}
-        </h1>
-        <p className="text-muted-foreground mt-2">
-          {searchQuery 
-            ? `${allNews.length} ${allNews.length === 1 ? 'resultado' : 'resultados'} para "${searchQuery}"`
-            : 'Explore as últimas notícias temáticas do Boletim'
-          }
-        </p>
-      </header>
-      
-      <NewsList 
-        news={remainingNews} 
-        isLoading={isLoading} 
-        showTopic={true}
-        hasNextPage={hasNextPage}
-        isFetchingNextPage={isFetchingNextPage}
-        fetchNextPage={fetchNextPage}
-      />
-    </div>
+        <header className="animate-fade-in">
+          <h1 className="font-serif text-3xl font-bold">
+            {searchQuery ? 'Resultados da Busca' : 'Últimas Notícias'}
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            {searchQuery 
+              ? `${allNews.length} ${allNews.length === 1 ? 'resultado' : 'resultados'} para "${searchQuery}"`
+              : 'Explore as últimas notícias temáticas do Boletim'
+            }
+          </p>
+        </header>
+        
+        <NewsList 
+          news={remainingNews} 
+          isLoading={isLoading} 
+          showTopic={true}
+          hasNextPage={hasNextPage}
+          isFetchingNextPage={isFetchingNextPage}
+          fetchNextPage={fetchNextPage}
+        />
+      </div>
+    </PageTransition>
   );
 }

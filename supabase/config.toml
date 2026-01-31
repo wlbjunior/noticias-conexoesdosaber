@@ -2,3 +2,6 @@ project_id = "yfyhpgskbvtfjkyiyuwj"
 
 [functions.cleanup-discarded-news]
 verify_jwt = false
+
+[functions.generate-hero-image]
+verify_jwt = false
