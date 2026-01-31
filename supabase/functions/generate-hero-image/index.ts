@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,13 +13,34 @@ serve(async (req) => {
   }
 
   try {
-    const { title, description, topic } = await req.json();
+    const { title, description, topic, newsId } = await req.json();
 
     if (!title) {
       return new Response(
         JSON.stringify({ error: 'Title is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Check cache first if newsId is provided
+    if (newsId) {
+      const { data: cached } = await supabase
+        .from('hero_image_cache')
+        .select('image_url, prompt')
+        .eq('news_id', newsId)
+        .single();
+
+      if (cached?.image_url) {
+        console.log('[generate-hero-image] Returning cached image for news:', newsId);
+        return new Response(
+          JSON.stringify({ imageUrl: cached.image_url, prompt: cached.prompt, cached: true }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
@@ -86,10 +108,27 @@ serve(async (req) => {
       );
     }
 
+    // Save to cache if newsId is provided
+    if (newsId) {
+      const { error: cacheError } = await supabase
+        .from('hero_image_cache')
+        .upsert({
+          news_id: newsId,
+          image_url: imageUrl,
+          prompt: imagePrompt,
+        }, { onConflict: 'news_id' });
+
+      if (cacheError) {
+        console.error('[generate-hero-image] Cache save error:', cacheError);
+      } else {
+        console.log('[generate-hero-image] Image cached for news:', newsId);
+      }
+    }
+
     console.log('[generate-hero-image] Image generated successfully');
 
     return new Response(
-      JSON.stringify({ imageUrl, prompt: imagePrompt }),
+      JSON.stringify({ imageUrl, prompt: imagePrompt, cached: false }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error: unknown) {

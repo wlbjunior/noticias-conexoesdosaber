@@ -92,6 +92,38 @@ export type Database = {
         }
         Relationships: []
       }
+      hero_image_cache: {
+        Row: {
+          created_at: string
+          id: string
+          image_url: string
+          news_id: string
+          prompt: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          image_url: string
+          news_id: string
+          prompt?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          image_url?: string
+          news_id?: string
+          prompt?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hero_image_cache_news_id_fkey"
+            columns: ["news_id"]
+            isOneToOne: true
+            referencedRelation: "news"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       internal_news: {
         Row: {
           author_id: string | null

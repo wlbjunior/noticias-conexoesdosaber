@@ -119,12 +119,7 @@ function NewsCardComponent({ news, showTopic = true, animationDelay = 0, variant
           {news.title}
         </h3>
         
-        {/* Description preview */}
-        {news.description && (
-          <p className="text-sm text-muted-foreground line-clamp-2 mt-2">
-            {news.description}
-          </p>
-        )}
+        {/* Description removed per user request */}
         
         {/* Meta info */}
         <div className="flex items-center gap-3 text-xs text-muted-foreground mt-3">
