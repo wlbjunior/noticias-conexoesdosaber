@@ -123,10 +123,6 @@ export function NewsChat() {
   if (!isOpen) {
     return (
       <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
-        {/* Tooltip de boas-vindas */}
-        <div className="bg-card border border-border/50 rounded-lg px-3 py-2 shadow-lg animate-fade-in text-sm max-w-[200px] pointer-events-none">
-          <p className="text-xs text-muted-foreground">💡 Pergunte sobre as notícias!</p>
-        </div>
         <Button
           onClick={() => setIsOpen(true)}
           className={cn(
@@ -141,6 +137,10 @@ export function NewsChat() {
         >
           <MessageCircle className="h-6 w-6" />
         </Button>
+        {/* Tooltip abaixo do botão */}
+        <div className="bg-card border border-border/50 rounded-lg px-3 py-2 shadow-lg animate-fade-in text-sm max-w-[200px] pointer-events-none">
+          <p className="text-xs text-muted-foreground">💡 Pergunte sobre as notícias!</p>
+        </div>
       </div>
     );
   }
