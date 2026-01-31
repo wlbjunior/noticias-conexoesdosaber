@@ -75,9 +75,11 @@ export function NewsletterForm() {
 
   if (isSuccess) {
     return (
-      <Card className="border-border bg-card/70 shadow-sm backdrop-blur" role="status" aria-live="polite">
+      <Card className="border-border/50 bg-card/70 shadow-sm backdrop-blur" role="status" aria-live="polite">
         <CardContent className="pt-6 text-center">
-          <CheckCircle className="mx-auto mb-4 h-10 w-10 text-green-500" aria-hidden="true" />
+          <div className="mx-auto mb-4 w-fit p-3 rounded-full bg-green-500/10">
+            <CheckCircle className="h-8 w-8 text-green-500" aria-hidden="true" />
+          </div>
           <h3 className="mb-1 text-base font-semibold">Inscrição realizada!</h3>
           <p className="text-xs text-muted-foreground">
             Verifique seu e-mail para receber as novidades. Verifique também a pasta de spam.
@@ -88,10 +90,13 @@ export function NewsletterForm() {
   }
 
   return (
-    <Card className="border-border bg-card/70 shadow-sm backdrop-blur">
-      <CardHeader className="pb-3">
+    <Card className="border-border/50 bg-gradient-to-br from-card to-card/80 shadow-sm backdrop-blur overflow-hidden">
+      <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+      <CardHeader className="pb-3 relative">
         <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-          <Mail className="h-4 w-4" aria-hidden="true" />
+          <div className="p-1.5 rounded-full bg-primary/10 animate-pulse-soft">
+            <Mail className="h-4 w-4 text-primary" aria-hidden="true" />
+          </div>
           Newsletter
         </CardTitle>
         <CardDescription className="text-xs">

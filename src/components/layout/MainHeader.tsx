@@ -54,18 +54,23 @@ export function MainHeader() {
   const isActivePath = (path: string) => currentPath === path;
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto px-6">
+    <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 transition-all duration-300">
+      <div className="container mx-auto px-4 sm:px-6">
         <div className="flex h-16 items-center justify-between gap-6">
-          {/* Logo */}
+          {/* Logo with hover effect */}
           <Link
             to="/news"
-            className="flex items-center gap-3 rounded-md px-1 py-1 text-base font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="group flex items-center gap-3 rounded-lg px-2 py-1.5 text-base font-semibold text-foreground transition-all duration-300 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
-            <img src={logo} alt="Conexões do Saber" className="h-9 w-9 object-contain" />
-            <span className="hidden whitespace-nowrap text-sm sm:inline-block">Conexões do Saber</span>
+            <img 
+              src={logo} 
+              alt="Conexões do Saber" 
+              className="h-9 w-9 object-contain transition-transform duration-300 group-hover:scale-110" 
+            />
+            <span className="hidden whitespace-nowrap text-sm font-medium sm:inline-block">
+              Conexões do Saber
+            </span>
           </Link>
-
           <nav className="hidden flex-1 items-center justify-center gap-6 lg:flex">
             {/* Dropdown Temas */}
             <DropdownMenu>
@@ -181,22 +186,22 @@ export function MainHeader() {
           </div>
         </div>
 
-        {/* Mini menu com busca de notícias */}
-        <div className="border-t border-border/60 bg-muted/40">
-          <div className="container mx-auto flex items-center justify-center px-6 py-3">
-            <div className="flex w-full flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between">
-              {/* Campo de busca à esquerda ocupando mais espaço */}
-              <div className="flex-1 w-full">
+        {/* Mini menu with search */}
+        <div className="border-t border-border/40 bg-muted/30 backdrop-blur-sm">
+          <div className="container mx-auto flex items-center justify-center px-4 sm:px-6 py-3">
+            <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              {/* Search field */}
+              <div className="flex-1 w-full max-w-xl">
                 <NewsSearch value={query} onChange={setQuery} />
               </div>
 
-              {/* Fato do Dia e Parcerias à direita */}
-              <div className="mt-1 flex w-full items-center justify-start gap-2 sm:mt-0 sm:w-auto sm:justify-end">
+              {/* Fun Fact and Partnerships */}
+              <div className="flex w-full items-center justify-start gap-2 sm:w-auto sm:justify-end">
                 <FunFactWidget />
                 <Button
                   asChild
                   size="sm"
-                  className="h-9 justify-center px-4 text-xs font-medium"
+                  className="h-9 justify-center px-4 text-xs font-medium shadow-sm hover:shadow-md transition-shadow"
                 >
                   <Link to="/news/parcerias">Parcerias institucionais</Link>
                 </Button>

@@ -25,55 +25,69 @@ export function MainFooter() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="mt-12 border-t border-border bg-muted/40 backdrop-blur supports-[backdrop-filter]:bg-muted/30" role="contentinfo">
+    <footer 
+      className="mt-12 border-t border-border/50 bg-gradient-to-b from-muted/30 to-muted/60 backdrop-blur-sm" 
+      role="contentinfo"
+    >
       <div className="container mx-auto px-4 py-12">
         <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-4">
-          {/* Coluna 1 – Marca */}
+          {/* Column 1 - Brand */}
           <div className="space-y-4">
-            <Link to="/news" className="flex items-center gap-3 text-base font-semibold text-foreground">
-              <img src={logo} alt="Conexões do Saber" className="h-10 w-10 object-contain" />
+            <Link 
+              to="/news" 
+              className="group flex items-center gap-3 text-base font-semibold text-foreground transition-colors hover:text-primary"
+            >
+              <img 
+                src={logo} 
+                alt="Conexões do Saber" 
+                className="h-10 w-10 object-contain transition-transform duration-300 group-hover:scale-110" 
+              />
               <span>Conexões do Saber</span>
             </Link>
-            <p className="max-w-xs text-sm text-muted-foreground">
+            <p className="max-w-xs text-sm text-muted-foreground leading-relaxed">
               Boletim é a comunidade interna de notícias da plataforma Conexões do Saber, para explorar conhecimento em
               humanidades, artes e ciências sociais.
             </p>
             <div className="flex items-center gap-3 text-muted-foreground">
-              <a href="#" aria-label="Twitter" className="transition-colors hover:text-primary">
+              <a 
+                href="#" 
+                aria-label="Twitter" 
+                className="p-2 rounded-full transition-all duration-300 hover:text-primary hover:bg-primary/10"
+              >
                 <Twitter className="h-5 w-5" aria-hidden="true" />
               </a>
-              <a href="#" aria-label="GitHub" className="transition-colors hover:text-primary">
+              <a 
+                href="#" 
+                aria-label="GitHub" 
+                className="p-2 rounded-full transition-all duration-300 hover:text-primary hover:bg-primary/10"
+              >
                 <Github className="h-5 w-5" aria-hidden="true" />
               </a>
-              <a href="#" aria-label="E-mail" className="transition-colors hover:text-primary">
+              <a 
+                href="#" 
+                aria-label="E-mail" 
+                className="p-2 rounded-full transition-all duration-300 hover:text-primary hover:bg-primary/10"
+              >
                 <Mail className="h-5 w-5" aria-hidden="true" />
               </a>
             </div>
           </div>
 
-          {/* Coluna 2 – Temas */}
+          {/* Column 2 - Topics */}
           <div className="space-y-4">
-            <h2 className="text-sm font-semibold text-foreground">Temas</h2>
+            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">Temas</h2>
             <ul className="space-y-2 text-sm text-muted-foreground">
               {TOPICS.map((topic) => {
                 const style = topicStyles[topic];
-                const emoji =
-                  topic === "mitologia"
-                    ? "⚡"
-                    : topic === "filosofia"
-                      ? "💭"
-                      : topic === "artes"
-                        ? "🎨"
-                        : topic === "religiao"
-                          ? "⛪"
-                          : "🧠";
                 return (
                   <li key={topic} className="flex items-center gap-2">
-                    <span aria-hidden="true">{emoji}</span>
+                    <span aria-hidden="true">{style.icon}</span>
                     <Link
                       to={`/news/topic/${topic}`}
-                      className="transition-colors hover:text-foreground"
-                      style={{ color: style.color }}
+                      className={cn(
+                        'link-underline transition-colors hover:text-foreground',
+                        style.textClass
+                      )}
                     >
                       {style.label}
                     </Link>
