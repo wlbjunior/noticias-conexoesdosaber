@@ -151,7 +151,6 @@ export function MainHeader() {
 
           {/* Ações à direita */}
           <div className="flex items-center gap-2">
-            <ThemeToggle />
 
             {/* Botão de busca rápido – apenas ícone, usa o mesmo estado da busca */}
             <Button
@@ -189,22 +188,16 @@ export function MainHeader() {
         {/* Mini menu with search */}
         <div className="border-t border-border/40 bg-muted/30 backdrop-blur-sm">
           <div className="container mx-auto flex items-center justify-center px-4 sm:px-6 py-3">
-            <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex w-full items-center justify-center gap-3">
               {/* Search field */}
-              <div className="flex-1 w-full max-w-xl">
+              <div className="flex-1 max-w-xl">
                 <NewsSearch value={query} onChange={setQuery} />
               </div>
 
-              {/* Fun Fact and Partnerships */}
-              <div className="flex w-full items-center justify-start gap-2 sm:w-auto sm:justify-end">
+              {/* Fun Fact and Theme Toggle */}
+              <div className="flex items-center gap-2">
                 <FunFactWidget />
-                <Button
-                  asChild
-                  size="sm"
-                  className="h-9 justify-center px-4 text-xs font-medium shadow-sm hover:shadow-md transition-shadow"
-                >
-                  <a href="https://conexoesdosaber.com.br/contato" target="_blank" rel="noopener noreferrer">Parcerias institucionais</a>
-                </Button>
+                <ThemeToggle />
               </div>
             </div>
           </div>
