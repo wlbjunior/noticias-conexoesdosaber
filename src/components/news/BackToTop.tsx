@@ -30,7 +30,7 @@ export function BackToTop() {
       size="icon"
       variant="secondary"
       className={cn(
-        'fixed bottom-[72px] right-6 z-50 rounded-full shadow-lg transition-all duration-300',
+        'fixed bottom-[140px] right-6 z-50 rounded-full shadow-lg transition-all duration-300',
         'hover:shadow-xl hover:-translate-y-1',
         isVisible 
           ? 'opacity-100 translate-y-0' 
