@@ -203,7 +203,7 @@ export function MainHeader() {
                   size="sm"
                   className="h-9 justify-center px-4 text-xs font-medium shadow-sm hover:shadow-md transition-shadow"
                 >
-                  <Link to="/news/parcerias">Parcerias institucionais</Link>
+                  <a href="https://conexoesdosaber.com.br/contato" target="_blank" rel="noopener noreferrer">Parcerias institucionais</a>
                 </Button>
               </div>
             </div>

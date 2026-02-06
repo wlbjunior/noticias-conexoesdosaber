@@ -158,15 +158,15 @@ export function MainFooter() {
                 </Link>
               </li>
               <li>
-                <Link to="/news/contato" className="transition-colors hover:text-foreground">
+                <a href="https://conexoesdosaber.com.br/contato" target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-foreground">
                   Contato
-                </Link>
+                </a>
               </li>
               <li className="flex items-center gap-2">
                 <Building2 className="h-4 w-4" aria-hidden="true" />
-                <Link to="/news/parcerias" className="transition-colors hover:text-foreground">
+                <a href="https://conexoesdosaber.com.br/contato" target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-foreground">
                   Parcerias Institucionais
-                </Link>
+                </a>
               </li>
             </ul>
           </div>
