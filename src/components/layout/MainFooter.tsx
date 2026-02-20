@@ -6,18 +6,16 @@ import { TOPICS, topicStyles } from "@/lib/news/types";
 import { cn } from "@/lib/utils";
 
 const RESOURCE_LINKS = [
-  "Biblioteca",
-  "Glossário",
-  "Cronologia",
-  "Galeria",
-  "Personagens",
-  "Comunidade",
-  "Livros",
-] as const;
-
-const EXTERNAL_LINKS = [
-  { label: "Game", href: "https://rpgia.lovable.app" },
-  { label: "Notícias", href: "https://noticiastemas.lovable.app" },
+  { label: "Início", href: "https://conexoesdosaber.com.br" },
+  { label: "Acervo", href: "https://acervo.conexoesdosaber.com.br" },
+  { label: "Léxico", href: "https://lexico.conexoesdosaber.com.br" },
+  { label: "Cronos", href: "https://cronos.conexoesdosaber.com.br" },
+  { label: "Pinacoteca", href: "https://pinacoteca.conexoesdosaber.com.br" },
+  { label: "Vozes", href: "https://vozes.conexoesdosaber.com.br" },
+  { label: "Ágora", href: "https://agora.conexoesdosaber.com.br" },
+  { label: "Estante", href: "https://estante.conexoesdosaber.com.br" },
+  { label: "Saga", href: "https://rpg.conexoesdosaber.com.br" },
+  { label: "Boletim", href: "https://boletim.conexoesdosaber.com.br" },
   { label: "Cursos", href: "https://posgraduacoes.lovable.app/" },
 ] as const;
 
@@ -33,8 +31,8 @@ export function MainFooter() {
         <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-4">
           {/* Column 1 - Brand */}
           <div className="space-y-4">
-            <Link 
-              to="/news" 
+            <a 
+              href="https://boletim.conexoesdosaber.com.br" 
               className="group flex items-center gap-3 text-base font-semibold text-foreground transition-colors hover:text-primary"
             >
               <img 
@@ -43,7 +41,7 @@ export function MainFooter() {
                 className="h-10 w-10 object-contain transition-transform duration-300 group-hover:scale-110" 
               />
               <span>Conexões do Saber</span>
-            </Link>
+            </a>
             <p className="max-w-xs text-sm text-muted-foreground leading-relaxed">
               Boletim é a comunidade interna de notícias da plataforma Conexões do Saber, para explorar conhecimento em
               humanidades, artes e ciências sociais.
@@ -101,24 +99,10 @@ export function MainFooter() {
           <div className="space-y-4">
             <h2 className="text-sm font-semibold text-foreground">Recursos</h2>
             <ul className="space-y-2 text-sm text-muted-foreground" role="list">
-              {RESOURCE_LINKS.map((label) => (
-                <li key={label}>
-                  <span
-                    className="inline-flex items-center gap-1 cursor-not-allowed opacity-60"
-                    title="Em breve"
-                    aria-label={`${label} - em breve`}
-                  >
-                    {label}
-                    <span className="text-[10px] text-muted-foreground/70">(em breve)</span>
-                  </span>
-                </li>
-              ))}
-              {EXTERNAL_LINKS.map((item) => (
+              {RESOURCE_LINKS.map((item) => (
                 <li key={item.label}>
                   <a
                     href={item.href}
-                    target="_blank"
-                    rel="noreferrer"
                     className="transition-colors hover:text-foreground"
                   >
                     {item.label}
@@ -158,13 +142,13 @@ export function MainFooter() {
                 </Link>
               </li>
               <li>
-                <a href="https://conexoesdosaber.com.br/contato" target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-foreground">
+                <a href="https://conexoesdosaber.com.br/contato" className="transition-colors hover:text-foreground">
                   Contato
                 </a>
               </li>
               <li className="flex items-center gap-2">
                 <Building2 className="h-4 w-4" aria-hidden="true" />
-                <a href="https://conexoesdosaber.com.br/contato" target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-foreground">
+                <a href="https://conexoesdosaber.com.br/contato" className="transition-colors hover:text-foreground">
                   Parcerias Institucionais
                 </a>
               </li>

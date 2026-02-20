@@ -18,19 +18,17 @@ import { useNewsSearch } from "@/context/NewsSearchContext";
 import { NewsSearch } from "@/components/news/NewsSearch";
 import { FunFactWidget } from "@/components/news/FunFactWidget";
 
-const HEADER_LINKS = [
-  { label: "Biblioteca" },
-  { label: "Glossário" },
-  { label: "Cronologia" },
-  { label: "Galeria" },
-  { label: "Personagens" },
-  { label: "Comunidade" },
-  { label: "Livros" },
-] as const;
-
-const EXTERNAL_LINKS = [
-  { label: "Game", href: "https://rpgia.lovable.app" },
-  { label: "Notícias", href: "https://noticiastemas.lovable.app" },
+const NAV_LINKS = [
+  { label: "Início", href: "https://conexoesdosaber.com.br" },
+  { label: "Acervo", href: "https://acervo.conexoesdosaber.com.br" },
+  { label: "Léxico", href: "https://lexico.conexoesdosaber.com.br" },
+  { label: "Cronos", href: "https://cronos.conexoesdosaber.com.br" },
+  { label: "Pinacoteca", href: "https://pinacoteca.conexoesdosaber.com.br" },
+  { label: "Vozes", href: "https://vozes.conexoesdosaber.com.br" },
+  { label: "Ágora", href: "https://agora.conexoesdosaber.com.br" },
+  { label: "Estante", href: "https://estante.conexoesdosaber.com.br" },
+  { label: "Saga", href: "https://rpg.conexoesdosaber.com.br" },
+  { label: "Boletim", href: "https://boletim.conexoesdosaber.com.br" },
   { label: "Cursos", href: "https://posgraduacoes.lovable.app/" },
 ] as const;
 
@@ -58,8 +56,8 @@ export function MainHeader() {
       <div className="container mx-auto px-4 sm:px-6">
         <div className="flex h-16 items-center justify-between gap-6">
           {/* Logo with hover effect */}
-          <Link
-            to="/news"
+          <a
+            href="https://boletim.conexoesdosaber.com.br"
             className="group flex items-center gap-3 rounded-lg px-2 py-1.5 text-base font-semibold text-foreground transition-all duration-300 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <img 
@@ -70,7 +68,7 @@ export function MainHeader() {
             <span className="hidden whitespace-nowrap text-sm font-medium sm:inline-block">
               Conexões do Saber
             </span>
-          </Link>
+          </a>
           <nav className="hidden flex-1 items-center justify-center gap-6 lg:flex">
             {/* Dropdown Temas */}
             <DropdownMenu>
@@ -118,30 +116,16 @@ export function MainHeader() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Botões "limpos" – ainda sem rotas definidas */}
+            {/* Links de navegação */}
             <div className="flex items-center gap-1">
-              {HEADER_LINKS.map((item) => (
-                <Button
-                  key={item.label}
-                  type="button"
-                  variant="ghost"
-                  className="text-sm font-medium text-muted-foreground hover:text-foreground"
-                >
-                  {item.label}
-                </Button>
-              ))}
-            </div>
-
-            {/* Links externos */}
-            <div className="flex items-center gap-1">
-              {EXTERNAL_LINKS.map((item) => (
+              {NAV_LINKS.map((item) => (
                 <Button
                   key={item.label}
                   asChild
                   variant="ghost"
                   className="text-sm font-medium text-muted-foreground hover:text-foreground"
                 >
-                  <a href={item.href} target="_blank" rel="noreferrer">
+                  <a href={item.href}>
                     {item.label}
                   </a>
                 </Button>
