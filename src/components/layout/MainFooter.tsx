@@ -6,7 +6,7 @@ import { TOPICS, topicStyles } from "@/lib/news/types";
 import { cn } from "@/lib/utils";
 
 const RESOURCE_LINKS = [
-  { label: "Início", href: "https://conexoesdosaber.com.br" },
+  { label: "Portal", href: "https://conexoesdosaber.com.br" },
   { label: "Acervo", href: "https://acervo.conexoesdosaber.com.br" },
   { label: "Léxico", href: "https://lexico.conexoesdosaber.com.br" },
   { label: "Cronos", href: "https://cronos.conexoesdosaber.com.br" },
@@ -16,7 +16,7 @@ const RESOURCE_LINKS = [
   { label: "Estante", href: "https://estante.conexoesdosaber.com.br" },
   { label: "Saga", href: "https://rpg.conexoesdosaber.com.br" },
   { label: "Boletim", href: "https://boletim.conexoesdosaber.com.br" },
-  { label: "Cursos", href: "https://posgraduacoes.lovable.app/" },
+  { label: "Academia", href: "https://academia.conexoesdosaber.com.br" },
 ] as const;
 
 export function MainFooter() {
