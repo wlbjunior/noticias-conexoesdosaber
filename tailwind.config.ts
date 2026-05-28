@@ -69,9 +69,9 @@ export default {
           dark: 'hsl(35 90% 45%)'
         },
         religiao: {
-          DEFAULT: 'hsl(250 60% 55%)',
-          light: 'hsl(250 60% 65%)',
-          dark: 'hsl(250 60% 45%)'
+          DEFAULT: 'hsl(250 50% 32%)',
+          light: 'hsl(250 50% 42%)',
+          dark: 'hsl(250 50% 22%)'
         },
         artes: {
           DEFAULT: 'hsl(340 80% 60%)',
