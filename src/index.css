@@ -73,7 +73,7 @@ All colors MUST be HSL.
     /* Topic gradients */
     --gradient-mitologia: linear-gradient(135deg, hsl(230 80% 55%) 0%, hsl(280 70% 50%) 100%);
     --gradient-filosofia: linear-gradient(135deg, hsl(35 90% 55%) 0%, hsl(45 95% 60%) 100%);
-    --gradient-religiao: linear-gradient(135deg, hsl(250 60% 55%) 0%, hsl(270 50% 45%) 100%);
+    --gradient-religiao: linear-gradient(135deg, hsl(250 50% 32%) 0%, hsl(270 45% 25%) 100%);
     --gradient-artes: linear-gradient(135deg, hsl(340 80% 60%) 0%, hsl(20 90% 65%) 100%);
     --gradient-psicologia: linear-gradient(135deg, hsl(160 70% 40%) 0%, hsl(140 60% 50%) 100%);
     
@@ -146,7 +146,7 @@ All colors MUST be HSL.
     /* Topic gradients - dark mode */
     --gradient-mitologia: linear-gradient(135deg, hsl(230 70% 45%) 0%, hsl(280 60% 40%) 100%);
     --gradient-filosofia: linear-gradient(135deg, hsl(35 80% 45%) 0%, hsl(45 85% 50%) 100%);
-    --gradient-religiao: linear-gradient(135deg, hsl(250 50% 45%) 0%, hsl(270 40% 35%) 100%);
+    --gradient-religiao: linear-gradient(135deg, hsl(250 45% 28%) 0%, hsl(270 40% 22%) 100%);
     --gradient-artes: linear-gradient(135deg, hsl(340 70% 50%) 0%, hsl(20 80% 55%) 100%);
     --gradient-psicologia: linear-gradient(135deg, hsl(160 60% 35%) 0%, hsl(140 50% 40%) 100%);
 

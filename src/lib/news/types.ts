@@ -38,7 +38,7 @@ export const topicStyles = {
     icon: '💭'
   },
   religiao: { 
-    color: 'hsl(250, 60%, 55%)', 
+    color: 'hsl(250, 50%, 32%)', 
     bgClass: 'bg-religiao/10', 
     textClass: 'text-religiao', 
     borderClass: 'border-religiao', 
