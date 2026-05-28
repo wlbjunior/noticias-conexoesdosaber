@@ -14,7 +14,7 @@ export function NewBadge({ publishedAt }: NewBadgeProps) {
   
   return (
     <Badge 
-      className="absolute top-2 right-2 bg-destructive text-destructive-foreground border-0 animate-pulse z-10 shadow-md"
+      className="absolute top-2 right-2 bg-red-700 text-white border-0 animate-pulse z-10 shadow-md font-semibold"
     >
       Novo
     </Badge>
