@@ -82,11 +82,9 @@ function NewsCardComponent({ news, showTopic = true, animationDelay = 0, variant
           {/* Topic badge on image */}
           {showTopic && (
             <Badge 
-              variant="outline" 
               className={cn(
-                'absolute bottom-3 left-3 backdrop-blur-sm border-0',
-                topicStyle.bgClass,
-                topicStyle.textClass
+                'absolute bottom-3 left-3 border-0 text-white shadow-md',
+                topicStyle.solidBgClass
               )}
             >
               <span className="mr-1 text-xs">{topicStyle.icon}</span>
@@ -100,11 +98,9 @@ function NewsCardComponent({ news, showTopic = true, animationDelay = 0, variant
         {/* Topic badge when no image */}
         {showTopic && !news.image_url && (
           <Badge 
-            variant="outline" 
             className={cn(
-              'w-fit border-0',
-              topicStyle.bgClass,
-              topicStyle.textClass
+              'w-fit border-0 text-white',
+              topicStyle.solidBgClass
             )}
           >
             <span className="mr-1 text-xs">{topicStyle.icon}</span>

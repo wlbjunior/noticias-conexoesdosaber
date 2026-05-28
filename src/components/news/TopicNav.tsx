@@ -52,9 +52,8 @@ export function TopicNav() {
                 'hover:scale-105 active:scale-95',
                 active
                   ? cn(
-                      style.bgClass,
-                      style.textClass,
-                      'ring-2 ring-offset-2 ring-offset-background shadow-lg'
+                      style.solidBgClass,
+                      'text-white shadow-lg ring-2 ring-offset-2 ring-offset-background'
                     )
                   : 'bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground'
               )}
