@@ -57,16 +57,16 @@ export default {
           border: 'hsl(var(--sidebar-border))',
           ring: 'hsl(var(--sidebar-ring))'
         },
-        // Topic colors
+        // Topic colors — DEFAULT lightness ≤ 45% for AA contrast with white text
         mitologia: {
-          DEFAULT: 'hsl(230 80% 55%)',
-          light: 'hsl(230 80% 65%)',
-          dark: 'hsl(230 80% 45%)'
+          DEFAULT: 'hsl(230 70% 30%)',
+          light: 'hsl(230 70% 45%)',
+          dark: 'hsl(230 70% 20%)'
         },
         filosofia: {
-          DEFAULT: 'hsl(35 90% 55%)',
-          light: 'hsl(35 90% 65%)',
-          dark: 'hsl(35 90% 45%)'
+          DEFAULT: 'hsl(35 85% 35%)',
+          light: 'hsl(35 85% 45%)',
+          dark: 'hsl(35 85% 25%)'
         },
         religiao: {
           DEFAULT: 'hsl(250 50% 32%)',
@@ -74,14 +74,14 @@ export default {
           dark: 'hsl(250 50% 22%)'
         },
         artes: {
-          DEFAULT: 'hsl(340 80% 60%)',
-          light: 'hsl(340 80% 70%)',
-          dark: 'hsl(340 80% 50%)'
+          DEFAULT: 'hsl(340 70% 35%)',
+          light: 'hsl(340 70% 45%)',
+          dark: 'hsl(340 70% 25%)'
         },
         psicologia: {
-          DEFAULT: 'hsl(160 70% 40%)',
-          light: 'hsl(160 70% 50%)',
-          dark: 'hsl(160 70% 30%)'
+          DEFAULT: 'hsl(160 65% 25%)',
+          light: 'hsl(160 65% 35%)',
+          dark: 'hsl(160 65% 18%)'
         }
       },
       borderRadius: {
