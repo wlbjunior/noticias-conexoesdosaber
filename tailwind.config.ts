@@ -171,11 +171,11 @@ export default {
         xl: 'var(--shadow-xl)',
         '2xl': 'var(--shadow-2xl)',
         'glow-primary': '0 0 20px hsl(var(--primary) / 0.3)',
-        'glow-mitologia': '0 0 20px hsl(230 80% 55% / 0.3)',
-        'glow-filosofia': '0 0 20px hsl(35 90% 55% / 0.3)',
+        'glow-mitologia': '0 0 20px hsl(230 70% 30% / 0.3)',
+        'glow-filosofia': '0 0 20px hsl(35 85% 35% / 0.3)',
         'glow-religiao': '0 0 20px hsl(250 50% 32% / 0.3)',
-        'glow-artes': '0 0 20px hsl(340 80% 60% / 0.3)',
-        'glow-psicologia': '0 0 20px hsl(160 70% 40% / 0.3)'
+        'glow-artes': '0 0 20px hsl(340 70% 35% / 0.3)',
+        'glow-psicologia': '0 0 20px hsl(160 65% 25% / 0.3)'
       },
       fontFamily: {
         sans: [
