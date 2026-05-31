@@ -8,6 +8,7 @@ import { NewsItem, getTopicStyle } from '@/lib/news/types';
 import { useNewsClick } from '@/hooks/useNewsClick';
 import { useHeroImage } from '@/hooks/useHeroImage';
 import { cn } from '@/lib/utils';
+import { optimizedHeroUrl } from '@/lib/image';
 
 interface HeroNewsProps {
   news: NewsItem;
