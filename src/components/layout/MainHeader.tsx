@@ -28,7 +28,6 @@ const NAV_LINKS = [
   { label: "Ágora", href: "https://agora.conexoesdosaber.com.br" },
   { label: "Estante", href: "https://estante.conexoesdosaber.com.br" },
   { label: "Saga", href: "https://rpg.conexoesdosaber.com.br" },
-  { label: "Boletim", href: "https://boletim.conexoesdosaber.com.br" },
   { label: "Academia", href: "https://academia.conexoesdosaber.com.br" },
 ] as const;
 
@@ -65,7 +64,7 @@ export function MainHeader() {
               alt="Conexões do Saber" 
               className="h-9 w-9 object-contain transition-transform duration-300 group-hover:scale-110" 
             />
-            <span className="hidden whitespace-nowrap text-sm font-medium sm:inline-block">
+            <span className="hidden whitespace-nowrap font-serif text-base font-semibold sm:inline-block">
               Conexões do Saber
             </span>
           </a>

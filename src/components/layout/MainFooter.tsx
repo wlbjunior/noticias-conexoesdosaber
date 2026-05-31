@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
-import { Twitter, Github, Mail, Building2, Settings } from "lucide-react";
+import { Twitter, Github, Mail, Building2 } from "lucide-react";
 import logo from "@/assets/logo.png";
-import { Button } from "@/components/ui/button";
 import { TOPICS, topicStyles } from "@/lib/news/types";
 import { cn } from "@/lib/utils";
 
@@ -15,7 +14,6 @@ const RESOURCE_LINKS = [
   { label: "Ágora", href: "https://agora.conexoesdosaber.com.br" },
   { label: "Estante", href: "https://estante.conexoesdosaber.com.br" },
   { label: "Saga", href: "https://rpg.conexoesdosaber.com.br" },
-  { label: "Boletim", href: "https://boletim.conexoesdosaber.com.br" },
   { label: "Academia", href: "https://academia.conexoesdosaber.com.br" },
 ] as const;
 
@@ -157,22 +155,11 @@ export function MainFooter() {
         </div>
 
         {/* Linha inferior */}
-        <div className="mt-10 flex flex-col items-start justify-between gap-4 border-t border-border pt-4 text-xs text-muted-foreground sm:flex-row sm:items-center">
+        <div className="mt-10 flex flex-col items-start justify-between gap-2 border-t border-border pt-4 text-xs text-muted-foreground sm:flex-row sm:items-center">
           <p>© {currentYear} Conexões do Saber. Todos os direitos reservados.</p>
-
-          <Button
-            asChild
-            variant="ghost"
-            size="icon"
-            className={cn(
-              "ml-auto inline-flex items-center justify-center rounded-full border border-border/60 bg-background/60 text-muted-foreground hover:text-foreground hover:bg-background",
-            )}
-            aria-label="Acesso administrativo"
-          >
-            <Link to="/admin">
-              <Settings className="h-4 w-4" aria-hidden="true" />
-            </Link>
-          </Button>
+          <p className="text-muted-foreground">
+            Feito com <span aria-label="amor" className="text-red-600">❤️</span> para a educação
+          </p>
         </div>
       </div>
     </footer>
