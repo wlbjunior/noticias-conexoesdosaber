@@ -138,13 +138,18 @@ serve(async (req) => {
       );
     }
 
+    // Upload to storage to avoid serving 1MB+ base64 data URLs on the client
+    const finalImageUrl = imageUrl.startsWith('data:')
+      ? await uploadDataUrlToStorage(imageUrl, `news-${newsId ?? crypto.randomUUID()}`)
+      : imageUrl;
+
     // Save to cache if newsId is provided
     if (newsId) {
       const { error: cacheError } = await supabase
         .from('hero_image_cache')
         .upsert({
           news_id: newsId,
-          image_url: imageUrl,
+          image_url: finalImageUrl,
           prompt: imagePrompt,
         }, { onConflict: 'news_id' });
 
@@ -158,9 +163,10 @@ serve(async (req) => {
     console.log('[generate-hero-image] Image generated successfully');
 
     return new Response(
-      JSON.stringify({ imageUrl, prompt: imagePrompt, cached: false }),
+      JSON.stringify({ imageUrl: finalImageUrl, prompt: imagePrompt, cached: false }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
+
   } catch (error: unknown) {
     console.error('[generate-hero-image] Error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Internal server error';
