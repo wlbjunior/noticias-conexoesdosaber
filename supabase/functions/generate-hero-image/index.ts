@@ -26,6 +26,25 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Helper: upload a data: URL to storage and return public URL
+    async function uploadDataUrlToStorage(dataUrl: string, key: string): Promise<string> {
+      const match = dataUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
+      if (!match) return dataUrl;
+      const mime = match[1];
+      const ext = mime.split('/')[1] || 'png';
+      const bytes = Uint8Array.from(atob(match[2]), c => c.charCodeAt(0));
+      const path = `${key}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from('hero-images')
+        .upload(path, bytes, { contentType: mime, upsert: true });
+      if (upErr) {
+        console.error('[generate-hero-image] Upload error:', upErr);
+        return dataUrl;
+      }
+      const { data: pub } = supabase.storage.from('hero-images').getPublicUrl(path);
+      return pub.publicUrl;
+    }
+
     // Check cache first if newsId is provided
     if (newsId) {
       const { data: cached } = await supabase
@@ -35,13 +54,24 @@ serve(async (req) => {
         .single();
 
       if (cached?.image_url) {
+        let url = cached.image_url as string;
+        // Migrate legacy base64 cache entries to storage
+        if (url.startsWith('data:')) {
+          url = await uploadDataUrlToStorage(url, `news-${newsId}`);
+          if (!url.startsWith('data:')) {
+            await supabase.from('hero_image_cache')
+              .update({ image_url: url })
+              .eq('news_id', newsId);
+          }
+        }
         console.log('[generate-hero-image] Returning cached image for news:', newsId);
         return new Response(
-          JSON.stringify({ imageUrl: cached.image_url, prompt: cached.prompt, cached: true }),
+          JSON.stringify({ imageUrl: url, prompt: cached.prompt, cached: true }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
     }
+
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
