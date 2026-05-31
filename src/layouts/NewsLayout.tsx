@@ -1,12 +1,18 @@
+import { lazy, Suspense } from 'react';
 import { Outlet } from 'react-router-dom';
-import { NewsChat } from '@/components/news/NewsChat';
 import { MainHeader } from '@/components/layout/MainHeader';
 import { MainFooter } from '@/components/layout/MainFooter';
 import { NewsSearchProvider } from '@/context/NewsSearchContext';
 import { NewsletterForm } from '@/components/news/NewsletterForm';
-import { ReadingStats } from '@/components/news/ReadingStats';
 import { ScrollProgress } from '@/components/news/ScrollProgress';
 import { BackToTop } from '@/components/news/BackToTop';
+
+const NewsChat = lazy(() =>
+  import('@/components/news/NewsChat').then((m) => ({ default: m.NewsChat }))
+);
+const ReadingStats = lazy(() =>
+  import('@/components/news/ReadingStats').then((m) => ({ default: m.ReadingStats }))
+);
 
 export function NewsLayout() {
   return (
@@ -34,7 +40,9 @@ export function NewsLayout() {
             <aside className="lg:col-span-1" aria-label="Barra lateral">
               <div className="sticky top-32 space-y-4">
                 <NewsletterForm />
-                <ReadingStats />
+                <Suspense fallback={null}>
+                  <ReadingStats />
+                </Suspense>
               </div>
             </aside>
           </div>
@@ -46,7 +54,9 @@ export function NewsLayout() {
         <BackToTop />
         
         {/* Chatbot */}
-        <NewsChat />
+        <Suspense fallback={null}>
+          <NewsChat />
+        </Suspense>
       </div>
     </NewsSearchProvider>
   );

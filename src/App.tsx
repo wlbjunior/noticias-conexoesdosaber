@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { HelmetProvider } from "react-helmet-async";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -15,9 +16,10 @@ import ContentPolicyPage from "./pages/info/ContentPolicyPage";
 import TermsPage from "./pages/info/TermsPage";
 import PrivacyPage from "./pages/info/PrivacyPage";
 import { ContactPage } from "./pages/info/ContactPage";
-import AdminPage from "./pages/admin/AdminPage";
 import { NewsSearchProvider } from "@/context/NewsSearchContext";
- 
+
+const AdminPage = lazy(() => import("./pages/admin/AdminPage"));
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -42,7 +44,14 @@ const App = () => (
                 <Route path="contato" element={<ContactPage mode="contato" />} />
                 <Route path="parcerias" element={<ContactPage mode="parcerias" />} />
               </Route>
-              <Route path="/admin" element={<AdminPage />} />
+              <Route
+                path="/admin"
+                element={
+                  <Suspense fallback={<div className="min-h-screen" />}>
+                    <AdminPage />
+                  </Suspense>
+                }
+              />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
@@ -52,5 +61,5 @@ const App = () => (
     </QueryClientProvider>
   </HelmetProvider>
 );
- 
+
 export default App;
