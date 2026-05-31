@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
-import { Twitter, Github, Mail, Building2, Settings } from "lucide-react";
+import { Twitter, Github, Mail, Building2 } from "lucide-react";
 import logo from "@/assets/logo.png";
-import { Button } from "@/components/ui/button";
 import { TOPICS, topicStyles } from "@/lib/news/types";
 import { cn } from "@/lib/utils";
 
@@ -15,7 +14,6 @@ const RESOURCE_LINKS = [
   { label: "Ágora", href: "https://agora.conexoesdosaber.com.br" },
   { label: "Estante", href: "https://estante.conexoesdosaber.com.br" },
   { label: "Saga", href: "https://rpg.conexoesdosaber.com.br" },
-  { label: "Boletim", href: "https://boletim.conexoesdosaber.com.br" },
   { label: "Academia", href: "https://academia.conexoesdosaber.com.br" },
 ] as const;
 
