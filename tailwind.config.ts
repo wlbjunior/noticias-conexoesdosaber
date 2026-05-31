@@ -179,7 +179,7 @@ export default {
       },
       fontFamily: {
         sans: [
-          'DM Sans',
+          'Inter',
           'ui-sans-serif',
           'system-ui',
           '-apple-system',
@@ -192,7 +192,7 @@ export default {
           'sans-serif'
         ],
         serif: [
-          'Crimson Pro',
+          'Noto Serif',
           'ui-serif',
           'Georgia',
           'Cambria',
