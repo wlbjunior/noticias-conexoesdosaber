@@ -8,6 +8,7 @@ import { NewsItem, getTopicStyle } from '@/lib/news/types';
 import { useNewsClick } from '@/hooks/useNewsClick';
 import { useHeroImage } from '@/hooks/useHeroImage';
 import { cn } from '@/lib/utils';
+import { optimizedHeroUrl } from '@/lib/image';
 
 interface HeroNewsProps {
   news: NewsItem;
@@ -56,11 +57,15 @@ function HeroNewsComponent({ news }: HeroNewsProps) {
       <div className="relative h-[400px] sm:h-[450px] lg:h-[500px] overflow-hidden">
         {displayImageUrl ? (
           <img
-            src={displayImageUrl}
+            src={optimizedHeroUrl(displayImageUrl, 1200)}
             alt={`Imagem: ${news.title}`}
+            width={1200}
+            height={500}
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-100"
             style={{ transform: `translateY(${scrollY}px) scale(1.1)` }}
             loading="eager"
+            fetchPriority="high"
+            decoding="async"
           />
         ) : (
           <div 
