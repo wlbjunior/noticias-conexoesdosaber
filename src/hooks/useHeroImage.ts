@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { NewsItem } from '@/lib/news/types';
+import { logger } from '@/lib/logger';
 
 interface HeroImageResult {
   imageUrl: string;
@@ -14,7 +15,7 @@ export function useHeroImage(news: NewsItem | null) {
     queryFn: async (): Promise<HeroImageResult | null> => {
       if (!news) return null;
 
-      console.log('[useHeroImage] Requesting image for:', news.title);
+      logger.log('[useHeroImage] Requesting image for:', news.title);
 
       const { data, error } = await supabase.functions.invoke('generate-hero-image', {
         body: {
@@ -26,11 +27,11 @@ export function useHeroImage(news: NewsItem | null) {
       });
 
       if (error) {
-        console.error('[useHeroImage] Error:', error);
+        logger.error('[useHeroImage] Error:', error);
         throw error;
       }
 
-      console.log('[useHeroImage] Image received, cached:', data?.cached);
+      logger.log('[useHeroImage] Image received, cached:', data?.cached);
       return data as HeroImageResult;
     },
     enabled: Boolean(news?.id),

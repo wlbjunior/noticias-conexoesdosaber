@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Topic } from '@/lib/news/types';
+import { logger } from '@/lib/logger';
 
 export type NewsSource = 'newsdata' | 'worldnews';
 
@@ -14,7 +15,7 @@ export function useExternalNews({ source, query, topic }: ExternalNewsParams) {
   return useQuery({
     queryKey: ['external-news', source, query, topic],
     queryFn: async () => {
-      console.log('[useExternalNews] Fetching', { source, query, topic });
+      logger.log('[useExternalNews] Fetching', { source, query, topic });
 
       const functionName = source === 'newsdata' ? 'fetch-newsdata' : 'fetch-worldnews';
 
@@ -23,11 +24,11 @@ export function useExternalNews({ source, query, topic }: ExternalNewsParams) {
       });
 
       if (error) {
-        console.error('[useExternalNews] Error', error);
+        logger.error('[useExternalNews] Error', error);
         throw error;
       }
 
-      console.log('[useExternalNews] Success', { count: data.news?.length });
+      logger.log('[useExternalNews] Success', { count: data.news?.length });
       return data.news;
     },
     staleTime: 1000 * 60 * 15, // 15 minutes
