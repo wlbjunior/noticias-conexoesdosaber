@@ -1,0 +1,1 @@
+DROP POLICY "Anyone can subscribe to newsletter" ON public.newsletter_subscriptions;
