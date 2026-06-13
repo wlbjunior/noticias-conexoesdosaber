@@ -1,8 +1,7 @@
-import { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, ChevronDown, Search as SearchIcon } from "lucide-react";
+import { useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { Menu, ChevronDown, Search as SearchIcon } from "lucide-react";
 import logo from "@/assets/logo.png";
-import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,6 +10,13 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
 import { TOPICS, topicStyles } from "@/lib/news/types";
@@ -31,11 +37,20 @@ const NAV_LINKS = [
   { label: "Academia", href: "https://academia.conexoesdosaber.com.br" },
 ] as const;
 
+const TOPIC_EMOJI: Record<string, string> = {
+  mitologia: "⚡",
+  filosofia: "💭",
+  artes: "🎨",
+  religiao: "⛪",
+  psicologia: "🧠",
+};
+
 export function MainHeader() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { query, setQuery } = useNewsSearch();
+  const searchWrapperRef = useRef<HTMLDivElement>(null);
 
   const currentPath = location.pathname;
 
@@ -50,6 +65,14 @@ export function MainHeader() {
 
   const isActivePath = (path: string) => currentPath === path;
 
+  const focusMobileSearch = () => {
+    const input = searchWrapperRef.current?.querySelector<HTMLInputElement>('input[type="search"]');
+    if (input) {
+      input.focus();
+      input.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  };
+
   return (
     <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 transition-all duration-300">
       <div className="container mx-auto px-4 sm:px-6">
@@ -59,10 +82,10 @@ export function MainHeader() {
             href="https://boletim.conexoesdosaber.com.br"
             className="group flex items-center gap-3 rounded-lg px-2 py-1.5 text-base font-semibold text-foreground transition-all duration-300 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
-            <img 
-              src={logo} 
-              alt="Conexões do Saber" 
-              className="h-9 w-9 object-contain transition-transform duration-300 group-hover:scale-110" 
+            <img
+              src={logo}
+              alt="Conexões do Saber"
+              className="h-9 w-9 object-contain transition-transform duration-300 group-hover:scale-110"
             />
             <span className="hidden whitespace-nowrap font-serif text-base font-semibold sm:inline-block">
               Conexões do Saber
@@ -99,13 +122,7 @@ export function MainHeader() {
                       key={topic}
                       onSelect={() => handleSelectTopic(topic)}
                     >
-                      <span className="mr-2" aria-hidden="true">
-                        {topic === "mitologia" && "⚡"}
-                        {topic === "filosofia" && "💭"}
-                        {topic === "artes" && "🎨"}
-                        {topic === "religiao" && "⛪"}
-                        {topic === "psicologia" && "🧠"}
-                      </span>
+                      <span className="mr-2" aria-hidden="true">{TOPIC_EMOJI[topic]}</span>
                       <span className="text-sm" style={{ color: style.color }}>
                         {style.label}
                       </span>
@@ -124,9 +141,7 @@ export function MainHeader() {
                   variant="ghost"
                   className="text-sm font-medium text-muted-foreground hover:text-foreground"
                 >
-                  <a href={item.href}>
-                    {item.label}
-                  </a>
+                  <a href={item.href}>{item.label}</a>
                 </Button>
               ))}
             </div>
@@ -134,37 +149,87 @@ export function MainHeader() {
 
           {/* Ações à direita */}
           <div className="flex items-center gap-2">
-
-            {/* Botão de busca rápido – apenas ícone, usa o mesmo estado da busca */}
+            {/* Mobile search trigger — focuses the visible search field */}
             <Button
               type="button"
               variant="ghost"
               size="icon"
               className="sm:hidden"
-              onClick={() => {
-                const next = query ? "" : query;
-                setQuery(next);
-              }}
+              onClick={focusMobileSearch}
               aria-label="Buscar notícias"
             >
               <SearchIcon className="h-5 w-5" aria-hidden="true" />
             </Button>
 
             {/* Menu mobile */}
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="lg:hidden"
-              onClick={() => setIsMobileMenuOpen((open) => !open)}
-              aria-label={isMobileMenuOpen ? "Fechar menu" : "Abrir menu"}
-            >
-              {isMobileMenuOpen ? (
-                <X className="h-5 w-5" aria-hidden="true" />
-              ) : (
-                <Menu className="h-5 w-5" aria-hidden="true" />
-              )}
-            </Button>
+            <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="lg:hidden"
+                  aria-label="Abrir menu"
+                >
+                  <Menu className="h-5 w-5" aria-hidden="true" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[85vw] max-w-sm overflow-y-auto">
+                <SheetHeader>
+                  <SheetTitle className="font-serif text-left">Navegação</SheetTitle>
+                </SheetHeader>
+
+                <div className="mt-6 space-y-6">
+                  <section>
+                    <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Temas
+                    </h3>
+                    <div className="flex flex-col">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectTopic()}
+                        className="flex items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-accent"
+                      >
+                        <span aria-hidden="true">📚</span>
+                        <span>Geral</span>
+                      </button>
+                      {TOPICS.map((topic) => {
+                        const style = topicStyles[topic];
+                        return (
+                          <button
+                            key={topic}
+                            type="button"
+                            onClick={() => handleSelectTopic(topic)}
+                            className="flex items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-accent"
+                          >
+                            <span aria-hidden="true">{TOPIC_EMOJI[topic]}</span>
+                            <span style={{ color: style.color }}>{style.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </section>
+
+                  <section>
+                    <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Ecossistema
+                    </h3>
+                    <div className="flex flex-col">
+                      {NAV_LINKS.map((item) => (
+                        <a
+                          key={item.label}
+                          href={item.href}
+                          onClick={() => setIsMobileMenuOpen(false)}
+                          className="rounded-md px-2 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+                        >
+                          {item.label}
+                        </a>
+                      ))}
+                    </div>
+                  </section>
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
 
@@ -173,7 +238,7 @@ export function MainHeader() {
           <div className="container mx-auto flex items-center justify-center px-4 sm:px-6 py-3">
             <div className="flex w-full items-center justify-center gap-3">
               {/* Search field */}
-              <div className="flex-1 max-w-xl">
+              <div ref={searchWrapperRef} className="flex-1 max-w-xl">
                 <NewsSearch value={query} onChange={setQuery} />
               </div>
 
