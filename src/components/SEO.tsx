@@ -14,7 +14,7 @@ interface SEOProps {
 export function SEO({
   title = "Boletim — Conexões do Saber",
   description = "Boletim, comunidade interna da plataforma Conexões do Saber, reúne notícias sobre Mitologia, Filosofia, Religião, Artes e Psicologia.",
-  image = "/og-image.png",
+  image = "https://boletim.conexoesdosaber.com.br/og-image.png",
   url,
   type = "website",
 }: SEOProps) {
