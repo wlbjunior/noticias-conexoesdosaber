@@ -1,4 +1,5 @@
 import { useParams, Link, Navigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ArrowLeft, ExternalLink, Calendar, Globe } from 'lucide-react';
@@ -34,6 +35,16 @@ export default function NewsDetail() {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      <Helmet>
+        <title>{`${news.title} | Boletim — Conexões do Saber`}</title>
+        <meta name="description" content={news.description?.slice(0, 160) || `${topicStyle.label} — Boletim Conexões do Saber`} />
+        <meta property="og:title" content={news.title} />
+        <meta property="og:description" content={news.description?.slice(0, 200) || ''} />
+        <meta property="og:type" content="article" />
+        <meta property="og:url" content={`https://boletim.conexoesdosaber.com.br/news/${news.id}`} />
+        {news.image_url && <meta property="og:image" content={news.image_url} />}
+        <link rel="canonical" href={`https://boletim.conexoesdosaber.com.br/news/${news.id}`} />
+      </Helmet>
       <Button variant="ghost" asChild>
         <Link to="/news">
           <ArrowLeft className="w-4 h-4 mr-2" />
