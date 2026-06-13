@@ -275,7 +275,48 @@ All colors MUST be HSL.
 
   .animate-slide-up {
     animation: slide-up 0.5s ease-out forwards;
+}
+
+/* Reduced motion: ensure entry-animation content is visible immediately.
+   Many utilities (animate-fade-in, animate-slide-up, animate-page-enter,
+   animate-scale-in, animate-scale-bounce, animate-enter) start from opacity:0
+   and would stay invisible if animations are disabled. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
   }
+
+  .animate-fade-in,
+  .animate-fade-out,
+  .animate-slide-up,
+  .animate-slide-in-right,
+  .animate-slide-out-right,
+  .animate-scale-in,
+  .animate-scale-out,
+  .animate-scale-bounce,
+  .animate-page-enter,
+  .animate-enter,
+  .animate-exit,
+  .animate-accordion-down,
+  .animate-accordion-up,
+  .animate-pulse-soft,
+  .animate-float,
+  .animate-glow,
+  .animate-glow-pulse,
+  .animate-shimmer,
+  .animate-topic-glow {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+  }
+}
   
   .animate-shimmer {
     background: linear-gradient(90deg, transparent, hsl(var(--primary) / 0.1), transparent);
