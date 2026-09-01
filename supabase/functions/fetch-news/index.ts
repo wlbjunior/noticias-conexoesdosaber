@@ -22,7 +22,7 @@ const RSS_TIMEOUT_MS = 12000;
 // Google Notícias: limite por rajada — espaçar buscas e recuar mais no 503
 const GOOGLE_MIN_GAP_MS = 4000; // 3–5 s entre buscas diferentes
 const GOOGLE_BACKOFF_MS = [3000, 8000, 20000]; // esperas entre tentativas no 503/429
-const GOOGLE_CIRCUIT_FAILURES = 2; // após N fontes seguidas esgotando o retry, pula o resto do Google nesta rodada
+const GOOGLE_CIRCUIT_FAILURES = 1; // após N fontes seguidas esgotando todo o retry (4×503), pula o resto do Google nesta rodada
 const NONE_THEME = "nenhum";
 
 const LOG = "[fetch-news]";
@@ -956,78 +956,89 @@ async function applyRetention(db: SupabaseClient) {
 }
 
 // ------------------------------------------------------------------
+// Rodada completa (roda em segundo plano — o cron/cliente não precisa esperar)
+// ------------------------------------------------------------------
+async function runCollection(): Promise<void> {
+  const startedAt = Date.now();
+  const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+  const [{ data: themes }, { data: sources }, { data: settings }] = await Promise.all([
+    db.from("themes").select("id, slug, name, description").eq("active", true).order("sort_order"),
+    db.from("sources").select("id, theme_id, kind, name, query, url, max_items, consecutive_failures").eq("active", true).order("created_at"),
+    db.from("app_settings").select("value").eq("key", "blocked_domains").maybeSingle(),
+  ]);
+
+  const activeThemes = (themes ?? []) as Theme[];
+  const allSources = (sources ?? []) as Source[];
+  const generalSources = allSources.filter((s) => s.theme_id === null);
+  const blockedDomains: string[] = Array.isArray(settings?.value) ? (settings!.value as unknown[]).filter((d): d is string => typeof d === "string") : [];
+  console.log(LOG, `Iniciando: ${activeThemes.length} temas, ${allSources.length} fontes (${generalSources.length} gerais), ${blockedDomains.length} domínios bloqueados`);
+
+  const gate = new GoogleGate();
+
+  // Fontes gerais: uma vez por rodada, a IA atribui o tema
+  const generalStarted = Date.now();
+  let general: { byTheme: Map<string, Preclassified[]>; collectedCount: number } = { byTheme: new Map(), collectedCount: 0 };
+  try {
+    general = await classifyGeneralSources(db, generalSources, activeThemes, blockedDomains, gate);
+  } catch (e) {
+    console.error(LOG, "Erro nas fontes gerais:", e instanceof Error ? e.message : String(e));
+  }
+
+  let generalInsertedTotal = 0;
+  for (const theme of activeThemes) {
+    const themeSources = allSources.filter((s) => s.theme_id === theme.id);
+    const pre = general.byTheme.get(theme.id) ?? [];
+    if (themeSources.length === 0 && pre.length === 0) {
+      console.warn(LOG, `Tema ${theme.slug} sem fontes ativas`);
+      continue;
+    }
+    try {
+      const { generalInserted } = await processTheme(db, theme, themeSources, blockedDomains, gate, pre);
+      generalInsertedTotal += generalInserted;
+    } catch (e) {
+      console.error(LOG, `Erro no tema ${theme.slug}:`, e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  if (generalSources.length > 0) {
+    await logCall(db, {
+      integration: "ingestao",
+      endpoint: "geral",
+      method: "PIPELINE",
+      duration_ms: Date.now() - generalStarted,
+      ok: true,
+      items_in: general.collectedCount,
+      items_new: generalInsertedTotal,
+    });
+  }
+
+  await applyRetention(db);
+  console.log(LOG, `Concluído em ${Date.now() - startedAt}ms`);
+}
+
+// ------------------------------------------------------------------
 // Entrypoint
 // ------------------------------------------------------------------
+declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void } | undefined;
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  const startedAt = Date.now();
-  try {
-    const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const job = runCollection().catch((e) => console.error(LOG, "Erro fatal", e));
 
-    const [{ data: themes }, { data: sources }, { data: settings }] = await Promise.all([
-      db.from("themes").select("id, slug, name, description").eq("active", true).order("sort_order"),
-      db.from("sources").select("id, theme_id, kind, name, query, url, max_items, consecutive_failures").eq("active", true).order("created_at"),
-      db.from("app_settings").select("value").eq("key", "blocked_domains").maybeSingle(),
-    ]);
-
-    const activeThemes = (themes ?? []) as Theme[];
-    const allSources = (sources ?? []) as Source[];
-    const generalSources = allSources.filter((s) => s.theme_id === null);
-    const blockedDomains: string[] = Array.isArray(settings?.value) ? (settings!.value as unknown[]).filter((d): d is string => typeof d === "string") : [];
-    console.log(LOG, `Iniciando: ${activeThemes.length} temas, ${allSources.length} fontes (${generalSources.length} gerais), ${blockedDomains.length} domínios bloqueados`);
-
-    const gate = new GoogleGate();
-
-    // Fontes gerais: uma vez por rodada, a IA atribui o tema
-    const generalStarted = Date.now();
-    let general: { byTheme: Map<string, Preclassified[]>; collectedCount: number } = { byTheme: new Map(), collectedCount: 0 };
-    try {
-      general = await classifyGeneralSources(db, generalSources, activeThemes, blockedDomains, gate);
-    } catch (e) {
-      console.error(LOG, "Erro nas fontes gerais:", e instanceof Error ? e.message : String(e));
-    }
-
-    let generalInsertedTotal = 0;
-    for (const theme of activeThemes) {
-      const themeSources = allSources.filter((s) => s.theme_id === theme.id);
-      const pre = general.byTheme.get(theme.id) ?? [];
-      if (themeSources.length === 0 && pre.length === 0) {
-        console.warn(LOG, `Tema ${theme.slug} sem fontes ativas`);
-        continue;
-      }
-      try {
-        const { generalInserted } = await processTheme(db, theme, themeSources, blockedDomains, gate, pre);
-        generalInsertedTotal += generalInserted;
-      } catch (e) {
-        console.error(LOG, `Erro no tema ${theme.slug}:`, e instanceof Error ? e.message : String(e));
-      }
-    }
-
-    if (generalSources.length > 0) {
-      await logCall(db, {
-        integration: "ingestao",
-        endpoint: "geral",
-        method: "PIPELINE",
-        duration_ms: Date.now() - generalStarted,
-        ok: true,
-        items_in: general.collectedCount,
-        items_new: generalInsertedTotal,
-      });
-    }
-
-    await applyRetention(db);
-
-    console.log(LOG, `Concluído em ${Date.now() - startedAt}ms`);
-    return new Response(JSON.stringify({ success: true, duration_ms: Date.now() - startedAt }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (error) {
-    console.error(LOG, "Erro fatal", error);
-    return new Response(JSON.stringify({ error: "Failed to refresh news" }), {
-      status: 500,
+  if (typeof EdgeRuntime !== "undefined" && EdgeRuntime?.waitUntil) {
+    // Responde já: a coleta leva minutos e o chamador (cron/admin) não deve segurar a conexão
+    EdgeRuntime.waitUntil(job);
+    return new Response(JSON.stringify({ accepted: true, message: "Coleta iniciada em segundo plano" }), {
+      status: 202,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
+
+  await job;
+  return new Response(JSON.stringify({ success: true }), {
+    status: 200,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 });
