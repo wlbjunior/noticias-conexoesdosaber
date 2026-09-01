@@ -192,12 +192,7 @@ export default function AdminPage() {
           .from("newsletter_subscriptions")
           .select("email, topics, confirmed, created_at, last_sent_at")
           .order("created_at", { ascending: false }),
-        supabase
-          .from("news_refresh_control")
-          .select("*")
-          .order("last_refresh_at", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
+        supabase.rpc("last_news_refresh_at"),
         supabase
           .from("internal_news")
           .select("*")
