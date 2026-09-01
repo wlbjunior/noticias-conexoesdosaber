@@ -14,6 +14,7 @@ export function useInfiniteNews(topic?: Topic, searchQuery?: string) {
       let externalQuery = supabase
         .from("news")
         .select("*")
+        .eq("status", "publicada")
         .order("published_at", { ascending: false })
         .range(pageParam * PAGE_SIZE, (pageParam + 1) * PAGE_SIZE - 1);
 
