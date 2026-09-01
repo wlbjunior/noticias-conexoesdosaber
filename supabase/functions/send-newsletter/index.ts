@@ -156,6 +156,7 @@ serve(async (req: Request) => {
       let newsQuery = supabase
         .from("news")
         .select("*")
+        .eq("status", "publicada")
         .in("topic", subscriber.topics)
         .gte("published_at", last24Hours.toISOString())
         .order("published_at", { ascending: false });

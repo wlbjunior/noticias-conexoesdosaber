@@ -12,6 +12,7 @@ export function useNews(topic?: Topic) {
       let query = supabase
         .from('news')
         .select('*')
+        .eq('status', 'publicada')
         .order('published_at', { ascending: false });
       
       if (topic) {

@@ -37,6 +37,7 @@ serve(async (req) => {
     const { data: recentNews } = await supabase
       .from("news")
       .select("title, topic, description, source_name, source_url, published_at")
+      .eq("status", "publicada")
       .order("published_at", { ascending: false })
       .limit(10);
 

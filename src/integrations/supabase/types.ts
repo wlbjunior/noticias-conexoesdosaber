@@ -10,10 +10,31 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.1"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
+      app_settings: {
+        Row: {
+          description: string | null
+          key: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          description?: string | null
+          key: string
+          updated_at?: string
+          value: Json
+        }
+        Update: {
+          description?: string | null
+          key?: string
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: []
+      }
       contact_messages: {
         Row: {
           created_at: string
@@ -61,6 +82,7 @@ export type Database = {
           restored: boolean
           source_name: string | null
           source_url: string
+          theme_id: string | null
           title: string
           topic: Database["public"]["Enums"]["news_topic"]
         }
@@ -74,6 +96,7 @@ export type Database = {
           restored?: boolean
           source_name?: string | null
           source_url: string
+          theme_id?: string | null
           title: string
           topic: Database["public"]["Enums"]["news_topic"]
         }
@@ -87,10 +110,19 @@ export type Database = {
           restored?: boolean
           source_name?: string | null
           source_url?: string
+          theme_id?: string | null
           title?: string
           topic?: Database["public"]["Enums"]["news_topic"]
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "discarded_news_theme_id_fkey"
+            columns: ["theme_id"]
+            isOneToOne: false
+            referencedRelation: "themes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       hero_image_cache: {
         Row: {
@@ -124,6 +156,48 @@ export type Database = {
           },
         ]
       }
+      integration_calls: {
+        Row: {
+          called_at: string
+          duration_ms: number | null
+          endpoint: string
+          error: string | null
+          http_status: number | null
+          id: string
+          integration: string
+          items_in: number | null
+          items_new: number | null
+          method: string
+          ok: boolean
+        }
+        Insert: {
+          called_at?: string
+          duration_ms?: number | null
+          endpoint: string
+          error?: string | null
+          http_status?: number | null
+          id?: string
+          integration: string
+          items_in?: number | null
+          items_new?: number | null
+          method?: string
+          ok?: boolean
+        }
+        Update: {
+          called_at?: string
+          duration_ms?: number | null
+          endpoint?: string
+          error?: string | null
+          http_status?: number | null
+          id?: string
+          integration?: string
+          items_in?: number | null
+          items_new?: number | null
+          method?: string
+          ok?: boolean
+        }
+        Relationships: []
+      }
       internal_news: {
         Row: {
           author_id: string | null
@@ -133,6 +207,7 @@ export type Database = {
           is_pinned: boolean
           published_at: string | null
           status: string
+          theme_id: string | null
           title: string
           topic: Database["public"]["Enums"]["news_topic"]
           updated_at: string
@@ -145,6 +220,7 @@ export type Database = {
           is_pinned?: boolean
           published_at?: string | null
           status: string
+          theme_id?: string | null
           title: string
           topic?: Database["public"]["Enums"]["news_topic"]
           updated_at?: string
@@ -157,11 +233,20 @@ export type Database = {
           is_pinned?: boolean
           published_at?: string | null
           status?: string
+          theme_id?: string | null
           title?: string
           topic?: Database["public"]["Enums"]["news_topic"]
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "internal_news_theme_id_fkey"
+            columns: ["theme_id"]
+            isOneToOne: false
+            referencedRelation: "themes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       news: {
         Row: {
@@ -172,10 +257,14 @@ export type Database = {
           id: string
           image_url: string | null
           published_at: string
+          raw: Json | null
           source_name: string | null
           source_url: string
+          status: string
+          theme_id: string | null
           title: string
           topic: Database["public"]["Enums"]["news_topic"]
+          url_hash: string
         }
         Insert: {
           created_at?: string
@@ -185,10 +274,14 @@ export type Database = {
           id?: string
           image_url?: string | null
           published_at: string
+          raw?: Json | null
           source_name?: string | null
           source_url: string
+          status?: string
+          theme_id?: string | null
           title: string
           topic: Database["public"]["Enums"]["news_topic"]
+          url_hash?: string
         }
         Update: {
           created_at?: string
@@ -198,30 +291,101 @@ export type Database = {
           id?: string
           image_url?: string | null
           published_at?: string
+          raw?: Json | null
           source_name?: string | null
           source_url?: string
+          status?: string
+          theme_id?: string | null
           title?: string
           topic?: Database["public"]["Enums"]["news_topic"]
+          url_hash?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "news_theme_id_fkey"
+            columns: ["theme_id"]
+            isOneToOne: false
+            referencedRelation: "themes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      news_analysis: {
+        Row: {
+          analyzed_at: string
+          angle: string | null
+          created_at: string
+          entities: string[] | null
+          id: string
+          is_relevant: boolean | null
+          is_spam: boolean | null
+          model: string | null
+          news_id: string
+          prompt_version: string | null
+          relevance: number | null
+          sentiment: string | null
+          summary: string | null
+        }
+        Insert: {
+          analyzed_at?: string
+          angle?: string | null
+          created_at?: string
+          entities?: string[] | null
+          id?: string
+          is_relevant?: boolean | null
+          is_spam?: boolean | null
+          model?: string | null
+          news_id: string
+          prompt_version?: string | null
+          relevance?: number | null
+          sentiment?: string | null
+          summary?: string | null
+        }
+        Update: {
+          analyzed_at?: string
+          angle?: string | null
+          created_at?: string
+          entities?: string[] | null
+          id?: string
+          is_relevant?: boolean | null
+          is_spam?: boolean | null
+          model?: string | null
+          news_id?: string
+          prompt_version?: string | null
+          relevance?: number | null
+          sentiment?: string | null
+          summary?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "news_analysis_news_id_fkey"
+            columns: ["news_id"]
+            isOneToOne: true
+            referencedRelation: "news"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       news_clicks: {
         Row: {
           clicked_at: string
           id: string
           news_id: string
+          theme_id: string | null
           topic: string
         }
         Insert: {
           clicked_at?: string
           id?: string
           news_id: string
+          theme_id?: string | null
           topic: string
         }
         Update: {
           clicked_at?: string
           id?: string
           news_id?: string
+          theme_id?: string | null
           topic?: string
         }
         Relationships: [
@@ -232,25 +396,14 @@ export type Database = {
             referencedRelation: "news"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "news_clicks_theme_id_fkey"
+            columns: ["theme_id"]
+            isOneToOne: false
+            referencedRelation: "themes"
+            referencedColumns: ["id"]
+          },
         ]
-      }
-      news_refresh_control: {
-        Row: {
-          created_at: string
-          id: string
-          last_refresh_at: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          last_refresh_at?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          last_refresh_at?: string
-        }
-        Relationships: []
       }
       newsletter_rate_limits: {
         Row: {
@@ -309,6 +462,95 @@ export type Database = {
         }
         Relationships: []
       }
+      sources: {
+        Row: {
+          active: boolean
+          consecutive_failures: number
+          created_at: string
+          id: string
+          kind: string
+          last_error: string | null
+          last_run_at: string | null
+          last_status: string
+          max_items: number
+          name: string
+          query: string
+          theme_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          consecutive_failures?: number
+          created_at?: string
+          id?: string
+          kind?: string
+          last_error?: string | null
+          last_run_at?: string | null
+          last_status?: string
+          max_items?: number
+          name: string
+          query: string
+          theme_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          consecutive_failures?: number
+          created_at?: string
+          id?: string
+          kind?: string
+          last_error?: string | null
+          last_run_at?: string | null
+          last_status?: string
+          max_items?: number
+          name?: string
+          query?: string
+          theme_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sources_theme_id_fkey"
+            columns: ["theme_id"]
+            isOneToOne: false
+            referencedRelation: "themes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      themes: {
+        Row: {
+          active: boolean
+          color: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          slug: string
+          sort_order: number
+        }
+        Insert: {
+          active?: boolean
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          slug: string
+          sort_order?: number
+        }
+        Update: {
+          active?: boolean
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          slug?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -329,9 +571,15 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      news_refresh_control: {
+        Row: {
+          last_refresh_at: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      canonical_url: { Args: { u: string }; Returns: string }
       cleanup_old_rate_limits: { Args: never; Returns: undefined }
       has_role: {
         Args: {
@@ -340,6 +588,8 @@ export type Database = {
         }
         Returns: boolean
       }
+      last_news_refresh_at: { Args: never; Returns: string }
+      url_hash: { Args: { u: string }; Returns: string }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
