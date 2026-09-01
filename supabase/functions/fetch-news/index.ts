@@ -10,13 +10,20 @@ const corsHeaders = {
 // Configuração
 // ------------------------------------------------------------------
 const PUBLISHED_PER_THEME = 10; // quantas ficam "publicada" por tema
-const CANDIDATES_PER_THEME = 12; // quantas candidatas novas tentamos por rodada
+const CANDIDATES_PER_THEME = 12; // candidatas novas por tema (fontes temáticas)
+const GENERAL_CANDIDATES_MAX = 40; // candidatas novas por rodada (fontes gerais, 1 lote de IA)
 const ARCHIVE_RETENTION_DAYS = 90;
-const AI_MODEL = "google/gemini-2.5-flash";
-const PROMPT_VERSION = "v1";
+const AI_MODEL = "google/gemini-3.5-flash";
+const PROMPT_VERSION = "boletim-v2";
 const AI_MAX_RETRIES = 3;
 const REDIRECT_TIMEOUT_MS = 2500;
-const RSS_TIMEOUT_MS = 10000;
+const RSS_TIMEOUT_MS = 12000;
+
+// Google Notícias: limite por rajada — espaçar buscas e recuar mais no 503
+const GOOGLE_MIN_GAP_MS = 4000; // 3–5 s entre buscas diferentes
+const GOOGLE_BACKOFF_MS = [3000, 8000, 20000]; // esperas entre tentativas no 503/429
+const GOOGLE_CIRCUIT_FAILURES = 1; // após N fontes seguidas esgotando todo o retry (4×503), pula o resto do Google nesta rodada
+const NONE_THEME = "nenhum";
 
 const LOG = "[fetch-news]";
 
@@ -36,21 +43,23 @@ interface Theme {
 
 interface Source {
   id: string;
-  theme_id: string;
-  kind: string;
+  theme_id: string | null;
+  kind: "google_news_rss" | "rss" | string;
   name: string;
-  query: string;
+  query: string | null;
+  url: string | null;
   max_items: number;
   consecutive_failures: number;
 }
 
 interface Candidate {
-  theme_id: string;
-  topic: string;
+  theme_id: string | null;
+  topic: string | null;
   title: string;
   source_name: string | null;
   source_url: string;
   published_at: string;
+  snippet: string | null;
   raw: Record<string, string | null>;
 }
 
@@ -63,6 +72,12 @@ interface AnalysisResult {
   sentimento: string | null;
   relevante: boolean;
   spam: boolean;
+  tema: string | null; // só no modo classificação (fontes gerais)
+}
+
+interface Preclassified {
+  candidate: Candidate;
+  analysis: AnalysisResult;
 }
 
 interface IntegrationCall {
@@ -77,8 +92,16 @@ interface IntegrationCall {
   error?: string | null;
 }
 
+interface InsertedRow {
+  id: string;
+  title: string;
+  source_name: string | null;
+  source_url: string;
+  published_at: string;
+}
+
 // ------------------------------------------------------------------
-// Telemetria — só grava após uma requisição HTTP real
+// Telemetria
 // ------------------------------------------------------------------
 async function logCall(db: SupabaseClient, call: IntegrationCall) {
   const { error } = await db.from("integration_calls").insert({
@@ -222,42 +245,55 @@ function extract(item: string, tag: string): string | null {
   return m ? m[1].trim() : null;
 }
 
-function parseRss(xml: string, theme: Theme, maxItems: number): { candidates: Candidate[]; parsed: number } {
+/** Atom: <link href="..."/> sem conteúdo. */
+function extractLinkHref(item: string): string | null {
+  const m = item.match(/<link[^>]*\shref=["']([^"']+)["'][^>]*\/?>/i);
+  return m ? m[1].trim() : null;
+}
+
+function parseFeed(xml: string, source: Source, theme: Theme | null): { candidates: Candidate[]; parsed: number } {
   const candidates: Candidate[] = [];
-  const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+  const isGoogle = source.kind === "google_news_rss";
+  // RSS 2.0 <item> ou Atom <entry>
+  const itemRegex = /<(item|entry)(?:\s[^>]*)?>([\s\S]*?)<\/\1>/g;
   let match: RegExpExecArray | null;
   let parsed = 0;
 
-  while ((match = itemRegex.exec(xml)) !== null && candidates.length < maxItems) {
+  while ((match = itemRegex.exec(xml)) !== null && candidates.length < source.max_items) {
     parsed++;
-    const item = match[1];
+    const item = match[2];
     const rawTitle = extract(item, "title");
-    const rawLink = extract(item, "link");
-    const rawPubDate = extract(item, "pubDate");
+    const rawLink = extract(item, "link") ?? extractLinkHref(item);
+    const rawPubDate = extract(item, "pubDate") ?? extract(item, "dc:date") ?? extract(item, "published") ?? extract(item, "updated");
     const rawSource = extract(item, "source");
-    const rawDescription = extract(item, "description");
+    const rawDescription = extract(item, "description") ?? extract(item, "summary") ?? extract(item, "content:encoded");
 
     if (!rawTitle || !rawLink) continue;
 
     let title = cleanHtml(rawTitle);
-    const dashIndex = title.lastIndexOf(" - ");
-    if (dashIndex > 0 && dashIndex > title.length * 0.5) title = title.slice(0, dashIndex).trim();
+    if (isGoogle) {
+      // Google anexa " - Nome do veículo" ao título
+      const dashIndex = title.lastIndexOf(" - ");
+      if (dashIndex > 0 && dashIndex > title.length * 0.5) title = title.slice(0, dashIndex).trim();
+    }
     if (!title) continue;
 
     const link = cleanHtml(rawLink);
     if (!/^https?:\/\//i.test(link)) continue;
 
-    const sourceName = rawSource ? cleanHtml(rawSource) : "Google News";
+    const sourceName = isGoogle ? (rawSource ? cleanHtml(rawSource) : "Google News") : source.name;
     const pub = rawPubDate ? new Date(rawPubDate) : null;
     const publishedAt = pub && !isNaN(pub.getTime()) ? pub.toISOString() : new Date().toISOString();
+    const snippet = !isGoogle && rawDescription ? cleanHtml(rawDescription).slice(0, 300) || null : null;
 
     candidates.push({
-      theme_id: theme.id,
-      topic: theme.slug,
+      theme_id: theme?.id ?? null,
+      topic: theme?.slug ?? null,
       title,
       source_name: sourceName,
       source_url: link,
       published_at: publishedAt,
+      snippet,
       raw: {
         title: rawTitle,
         link: rawLink,
@@ -270,29 +306,84 @@ function parseRss(xml: string, theme: Theme, maxItems: number): { candidates: Ca
   return { candidates, parsed };
 }
 
-async function fetchSource(db: SupabaseClient, source: Source, theme: Theme): Promise<Candidate[]> {
-  const url = `https://news.google.com/rss/search?q=${encodeURIComponent(source.query)}&hl=pt-BR&gl=BR&ceid=BR:pt-419`;
+function buildSourceUrl(source: Source): string | null {
+  if (source.kind === "google_news_rss") {
+    if (!source.query) return null;
+    return `https://news.google.com/rss/search?q=${encodeURIComponent(source.query)}&hl=pt-BR&gl=BR&ceid=BR:pt-419`;
+  }
+  if (source.kind === "rss") return source.url && /^https?:\/\//i.test(source.url) ? source.url : null;
+  return null;
+}
+
+/** Estado compartilhado da rodada para o Google Notícias (espaçamento + disjuntor). */
+class GoogleGate {
+  private lastFetchAt = 0;
+  private exhaustedInARow = 0;
+
+  get open() {
+    return this.exhaustedInARow < GOOGLE_CIRCUIT_FAILURES;
+  }
+  async waitTurn() {
+    const elapsed = Date.now() - this.lastFetchAt;
+    if (this.lastFetchAt && elapsed < GOOGLE_MIN_GAP_MS) await sleep(GOOGLE_MIN_GAP_MS - elapsed);
+  }
+  markFetched() {
+    this.lastFetchAt = Date.now();
+  }
+  markResult(exhausted: boolean) {
+    this.exhaustedInARow = exhausted ? this.exhaustedInARow + 1 : 0;
+  }
+}
+
+async function fetchSource(db: SupabaseClient, source: Source, theme: Theme | null, gate: GoogleGate): Promise<Candidate[]> {
+  const isGoogle = source.kind === "google_news_rss";
+  const integration = source.kind;
+  const label = source.name;
+  const url = buildSourceUrl(source);
+
+  if (!url) {
+    await updateSourceHealth(db, source, false, `configuração inválida para kind=${source.kind}`);
+    return [];
+  }
+  if (isGoogle && !gate.open) {
+    // Não fazemos requisição, então não gravamos integration_calls — só o status real da fonte
+    await updateSourceHealth(db, source, false, "pulada: Google Notícias com 503 persistente nesta rodada");
+    console.warn(LOG, `Google "${label}" pulada (disjuntor aberto)`);
+    return [];
+  }
+
   const started = Date.now();
   let status: number | null = null;
+  let exhausted = false;
 
   try {
     let res: Response | null = null;
-    // Google News às vezes responde 503 transitório: até 3 tentativas com backoff
-    for (let attempt = 1; attempt <= 3; attempt++) {
+    const attempts = isGoogle ? GOOGLE_BACKOFF_MS.length + 1 : 2;
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+      if (isGoogle) await gate.waitTurn();
       const controller = new AbortController();
       const t = setTimeout(() => controller.abort(), RSS_TIMEOUT_MS);
-      res = await fetch(url, {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
-          Accept: "application/rss+xml, application/xml;q=0.9, */*;q=0.8",
-          "Accept-Language": "pt-BR,pt;q=0.9",
-        },
-        signal: controller.signal,
-      });
-      clearTimeout(t);
-      if (res.ok || (res.status !== 503 && res.status !== 429) || attempt === 3) break;
-      console.warn(LOG, `RSS "${source.query}" HTTP ${res.status}, tentativa ${attempt}`);
-      await sleep(1500 * attempt);
+      try {
+        res = await fetch(url, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+            Accept: "application/rss+xml, application/atom+xml, application/xml;q=0.9, */*;q=0.8",
+            "Accept-Language": "pt-BR,pt;q=0.9",
+          },
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(t);
+        if (isGoogle) gate.markFetched();
+      }
+      const transient = res.status === 503 || res.status === 429 || res.status >= 500;
+      if (res.ok || !transient || attempt === attempts) {
+        exhausted = isGoogle && !res.ok && transient;
+        break;
+      }
+      const wait = isGoogle ? GOOGLE_BACKOFF_MS[attempt - 1] : 2000;
+      console.warn(LOG, `${integration} "${label}" HTTP ${res.status}, tentativa ${attempt}, aguardando ${wait}ms`);
+      await sleep(wait);
     }
     if (!res) throw new Error("sem resposta");
     status = res.status;
@@ -301,23 +392,34 @@ async function fetchSource(db: SupabaseClient, source: Source, theme: Theme): Pr
 
     if (!res.ok) {
       const err = `HTTP ${res.status}`;
-      await logCall(db, { integration: "google_news_rss", endpoint: url, http_status: status, duration_ms: duration, ok: false, error: err });
+      await logCall(db, { integration, endpoint: url, http_status: status, duration_ms: duration, ok: false, error: err });
       await updateSourceHealth(db, source, false, err);
+      if (isGoogle) gate.markResult(exhausted);
       return [];
     }
 
     const xml = decodeBody(bytes, detectCharset(res.headers.get("content-type"), bytes));
-    const { candidates, parsed } = parseRss(xml, theme, source.max_items);
+    const { candidates, parsed } = parseFeed(xml, source, theme);
 
-    await logCall(db, { integration: "google_news_rss", endpoint: url, http_status: status, duration_ms: duration, ok: true, items_in: parsed });
+    if (parsed === 0) {
+      const err = "resposta 200 sem itens reconhecíveis (não é RSS/Atom?)";
+      await logCall(db, { integration, endpoint: url, http_status: status, duration_ms: duration, ok: false, items_in: 0, error: err });
+      await updateSourceHealth(db, source, false, err);
+      if (isGoogle) gate.markResult(false);
+      return [];
+    }
+
+    await logCall(db, { integration, endpoint: url, http_status: status, duration_ms: duration, ok: true, items_in: parsed });
     await updateSourceHealth(db, source, true);
-    console.log(LOG, `RSS "${source.query}": ${parsed} itens, ${candidates.length} válidos`);
+    if (isGoogle) gate.markResult(false);
+    console.log(LOG, `${integration} "${label}": ${parsed} itens, ${candidates.length} válidos`);
     return candidates;
   } catch (e) {
-    const err = e instanceof Error ? e.message : String(e);
-    await logCall(db, { integration: "google_news_rss", endpoint: url, http_status: status, duration_ms: Date.now() - started, ok: false, error: err });
+    const err = e instanceof Error ? (e.name === "AbortError" ? `timeout após ${RSS_TIMEOUT_MS}ms` : e.message) : String(e);
+    await logCall(db, { integration, endpoint: url, http_status: status, duration_ms: Date.now() - started, ok: false, error: err });
     await updateSourceHealth(db, source, false, err);
-    console.error(LOG, `RSS "${source.query}" falhou:`, err);
+    if (isGoogle) gate.markResult(false);
+    console.error(LOG, `${integration} "${label}" falhou:`, err);
     return [];
   }
 }
@@ -340,45 +442,63 @@ async function resolvesToBlockedDomain(url: string, blocked: string[]): Promise<
 }
 
 // ------------------------------------------------------------------
-// IA — 1 chamada por tema, tool calling, retry com backoff
+// IA — tool calling em lote. Dois modos:
+//   validar   (theme definido): a IA confirma se o item é do tema
+//   classificar (theme nulo):   a IA ESCOLHE o tema entre os slugs ativos ou "nenhum"
 // ------------------------------------------------------------------
-const ANALYSIS_TOOL = {
-  type: "function",
-  function: {
-    name: "registrar_analises",
-    description: "Registra a análise editorial de cada notícia recebida.",
-    parameters: {
-      type: "object",
-      properties: {
-        analises: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              id: { type: "string", description: "id exatamente como recebido" },
-              resumo: { type: "string", description: "Resumo factual em PT-BR, 1-2 frases, baseado só no título/fonte. Se não for possível, string vazia." },
-              relevancia: { type: "integer", minimum: 0, maximum: 100 },
-              angulo: { type: "string", description: "Ângulo editorial em poucas palavras" },
-              entidades: { type: "array", items: { type: "string" } },
-              sentimento: { type: "string", enum: ["positivo", "neutro", "negativo"] },
-              relevante: { type: "boolean", description: "true se o tema principal é realmente o tema indicado" },
-              spam: { type: "boolean", description: "true se for propaganda, apostas, cassino, promoção, conteúdo enganoso ou sem valor jornalístico" },
-            },
-            required: ["id", "relevante", "spam"],
-            additionalProperties: false,
+function buildAnalysisTool(themeSlugs: string[] | null) {
+  const itemProps: Record<string, unknown> = {
+    id: { type: "string", description: "id exatamente como recebido" },
+    resumo: { type: "string", description: "Resumo factual em PT-BR, 1-2 frases, baseado só no título, fonte e trecho. Se não for possível, string vazia." },
+    relevancia: { type: "integer", minimum: 0, maximum: 100 },
+    angulo: { type: "string", description: "Ângulo editorial em poucas palavras" },
+    entidades: { type: "array", items: { type: "string" } },
+    sentimento: { type: "string", enum: ["positivo", "neutro", "negativo"] },
+    spam: { type: "boolean", description: "true se for propaganda, apostas, cassino, promoção, conteúdo enganoso ou sem valor jornalístico" },
+  };
+  const required = ["id", "spam"];
+  if (themeSlugs) {
+    itemProps.tema = {
+      type: "string",
+      enum: [...themeSlugs, NONE_THEME],
+      description: `Tema do Boletim ao qual a notícia pertence, ou "${NONE_THEME}" se não se enquadra em nenhum`,
+    };
+    required.push("tema");
+  } else {
+    itemProps.relevante = { type: "boolean", description: "true se o tema principal é realmente o tema indicado" };
+    required.push("relevante");
+  }
+  return {
+    type: "function",
+    function: {
+      name: "registrar_analises",
+      description: "Registra a análise editorial de cada notícia recebida.",
+      parameters: {
+        type: "object",
+        properties: {
+          analises: {
+            type: "array",
+            items: { type: "object", properties: itemProps, required, additionalProperties: false },
           },
         },
+        required: ["analises"],
+        additionalProperties: false,
       },
-      required: ["analises"],
-      additionalProperties: false,
     },
-  },
-};
+  };
+}
+
+interface AnalyzeInput {
+  id: string;
+  title: string;
+  source_name: string | null;
+  snippet?: string | null;
+}
 
 async function analyzeBatch(
   db: SupabaseClient,
-  theme: Theme,
-  items: { id: string; title: string; source_name: string | null }[],
+  mode: { kind: "validar"; theme: Theme } | { kind: "classificar"; themes: Theme[] },
+  items: AnalyzeInput[],
 ): Promise<AnalysisResult[] | null> {
   const apiKey = Deno.env.get("LOVABLE_API_KEY");
   if (!apiKey) {
@@ -386,15 +506,29 @@ async function analyzeBatch(
     return null;
   }
 
-  const systemPrompt =
-    `Você é editor do Boletim Conexões do Saber, um portal de humanidades. ` +
-    `Avalie cada notícia para o tema "${theme.name}" (${theme.description ?? ""}). ` +
-    `Seja rigoroso: se o assunto principal for outro (esporte, política partidária, celebridades, jogos de azar, promoções), marque relevante=false. ` +
-    `Marque spam=true para apostas, cassinos, bônus, cupons, conteúdo patrocinado ou sem valor jornalístico. ` +
-    `O resumo deve ser factual e derivado apenas do título e fonte — nunca invente fatos; se não houver base, deixe vazio. ` +
-    `Responda SOMENTE chamando a ferramenta registrar_analises, incluindo TODOS os ids recebidos.`;
+  const endpointTag = mode.kind === "validar" ? mode.theme.slug : "geral";
+  const themeSlugs = mode.kind === "classificar" ? mode.themes.map((t) => t.slug) : null;
+  const tool = buildAnalysisTool(themeSlugs);
 
-  const userPrompt = items.map((i) => `id: ${i.id}\ntítulo: ${i.title}\nfonte: ${i.source_name ?? "desconhecida"}`).join("\n\n");
+  const base =
+    `Você é editor do Boletim Conexões do Saber, um portal de humanidades. ` +
+    `Marque spam=true para apostas, cassinos, bônus, cupons, conteúdo patrocinado ou sem valor jornalístico. ` +
+    `O resumo deve ser factual e derivado apenas do título, fonte e trecho — nunca invente fatos; se não houver base, deixe vazio. ` +
+    `Responda SOMENTE chamando a ferramenta registrar_analises, incluindo TODOS os ids recebidos.`;
+  const systemPrompt =
+    mode.kind === "validar"
+      ? `${base} Avalie cada notícia para o tema "${mode.theme.name}" (${mode.theme.description ?? ""}). ` +
+        `Seja rigoroso: se o assunto principal for outro (esporte, política partidária, celebridades, jogos de azar, promoções), marque relevante=false.`
+      : `${base} As notícias vêm de veículos de interesse geral. Para cada uma, escolha o tema do Boletim ao qual ela pertence de fato:\n` +
+        mode.themes.map((t) => `- ${t.slug}: ${t.name}${t.description ? ` — ${t.description}` : ""}`).join("\n") +
+        `\nSeja rigoroso: só atribua um tema quando ele for o assunto principal da notícia. ` +
+        `Se for esporte, política partidária, economia, celebridades, tecnologia ou qualquer assunto fora desses temas, use tema="${NONE_THEME}".`;
+
+  const userPrompt = items
+    .map((i) => `id: ${i.id}\ntítulo: ${i.title}\nfonte: ${i.source_name ?? "desconhecida"}${i.snippet ? `\ntrecho: ${i.snippet}` : ""}`)
+    .join("\n\n");
+
+  const endpoint = `chat/completions#${endpointTag}`;
 
   for (let attempt = 1; attempt <= AI_MAX_RETRIES; attempt++) {
     const started = Date.now();
@@ -409,7 +543,7 @@ async function analyzeBatch(
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
           ],
-          tools: [ANALYSIS_TOOL],
+          tools: [tool],
           tool_choice: { type: "function", function: { name: "registrar_analises" } },
         }),
       });
@@ -418,21 +552,21 @@ async function analyzeBatch(
 
       if (!res.ok) {
         const body = await res.text();
-        await logCall(db, { integration: "lovable_ai", endpoint: `chat/completions#${theme.slug}`, method: "POST", http_status: status, duration_ms: duration, ok: false, items_in: items.length, error: body.slice(0, 500) });
+        await logCall(db, { integration: "lovable_ai", endpoint, method: "POST", http_status: status, duration_ms: duration, ok: false, items_in: items.length, error: body.slice(0, 500) });
         if ((status === 429 || status >= 500) && attempt < AI_MAX_RETRIES) {
           const wait = 2000 * 2 ** (attempt - 1);
-          console.warn(LOG, `IA ${status} (tema ${theme.slug}), tentativa ${attempt}, aguardando ${wait}ms`);
+          console.warn(LOG, `IA ${status} (${endpointTag}), tentativa ${attempt}, aguardando ${wait}ms`);
           await sleep(wait);
           continue;
         }
-        console.error(LOG, `IA falhou definitivamente para ${theme.slug}: ${status}`);
+        console.error(LOG, `IA falhou definitivamente para ${endpointTag}: ${status}`);
         return null;
       }
 
       const data = await res.json();
       const call = data?.choices?.[0]?.message?.tool_calls?.[0];
       if (!call?.function?.arguments) {
-        await logCall(db, { integration: "lovable_ai", endpoint: `chat/completions#${theme.slug}`, method: "POST", http_status: status, duration_ms: duration, ok: false, items_in: items.length, error: "resposta sem tool_call" });
+        await logCall(db, { integration: "lovable_ai", endpoint, method: "POST", http_status: status, duration_ms: duration, ok: false, items_in: items.length, error: "resposta sem tool_call" });
         return null;
       }
 
@@ -440,15 +574,25 @@ async function analyzeBatch(
       try {
         parsed = JSON.parse(call.function.arguments);
       } catch (e) {
-        await logCall(db, { integration: "lovable_ai", endpoint: `chat/completions#${theme.slug}`, method: "POST", http_status: status, duration_ms: duration, ok: false, items_in: items.length, error: `JSON inválido: ${String(e)}` });
+        await logCall(db, { integration: "lovable_ai", endpoint, method: "POST", http_status: status, duration_ms: duration, ok: false, items_in: items.length, error: `JSON inválido: ${String(e)}` });
         return null;
       }
 
       const validIds = new Set(items.map((i) => i.id));
+      const validThemes = themeSlugs ? new Set([...themeSlugs, NONE_THEME]) : null;
       const results: AnalysisResult[] = [];
       for (const a of parsed.analises ?? []) {
         const r = a as Record<string, unknown>;
         if (typeof r.id !== "string" || !validIds.has(r.id)) continue;
+        // Valida o tema devolvido contra os slugs reais; valor desconhecido é descartado (item fica retido)
+        let tema: string | null = null;
+        if (validThemes) {
+          if (typeof r.tema !== "string" || !validThemes.has(r.tema)) {
+            console.warn(LOG, `IA devolveu tema inválido "${String(r.tema)}" para ${r.id} — ignorado`);
+            continue;
+          }
+          tema = r.tema;
+        }
         results.push({
           id: r.id,
           resumo: typeof r.resumo === "string" && r.resumo.trim() ? r.resumo.trim().slice(0, 600) : null,
@@ -456,17 +600,18 @@ async function analyzeBatch(
           angulo: typeof r.angulo === "string" && r.angulo.trim() ? r.angulo.trim().slice(0, 200) : null,
           entidades: Array.isArray(r.entidades) ? r.entidades.filter((e): e is string => typeof e === "string").slice(0, 10) : [],
           sentimento: typeof r.sentimento === "string" ? r.sentimento : null,
-          relevante: r.relevante === true,
+          relevante: validThemes ? tema !== NONE_THEME : r.relevante === true,
           spam: r.spam === true,
+          tema,
         });
       }
 
-      await logCall(db, { integration: "lovable_ai", endpoint: `chat/completions#${theme.slug}`, method: "POST", http_status: status, duration_ms: duration, ok: true, items_in: items.length, items_new: results.length });
-      console.log(LOG, `IA ${theme.slug}: ${results.length}/${items.length} analisadas`);
+      await logCall(db, { integration: "lovable_ai", endpoint, method: "POST", http_status: status, duration_ms: duration, ok: true, items_in: items.length, items_new: results.length });
+      console.log(LOG, `IA ${endpointTag}: ${results.length}/${items.length} analisadas`);
       return results;
     } catch (e) {
       const err = e instanceof Error ? e.message : String(e);
-      await logCall(db, { integration: "lovable_ai", endpoint: `chat/completions#${theme.slug}`, method: "POST", http_status: status, duration_ms: Date.now() - started, ok: false, items_in: items.length, error: err });
+      await logCall(db, { integration: "lovable_ai", endpoint, method: "POST", http_status: status, duration_ms: Date.now() - started, ok: false, items_in: items.length, error: err });
       if (attempt < AI_MAX_RETRIES) {
         await sleep(2000 * 2 ** (attempt - 1));
         continue;
@@ -482,7 +627,7 @@ async function analyzeBatch(
 // ------------------------------------------------------------------
 async function discardNews(
   db: SupabaseClient,
-  row: { id?: string; theme_id: string; topic: string; title: string; description?: string | null; source_name: string | null; source_url: string; published_at: string },
+  row: { id?: string; theme_id: string | null; topic: string | null; title: string; description?: string | null; source_name: string | null; source_url: string; published_at: string },
   reason: string,
   aiRaw: string | null,
 ) {
@@ -504,23 +649,31 @@ async function discardNews(
   }
 }
 
-// ------------------------------------------------------------------
-// Processamento por tema
-// ------------------------------------------------------------------
-async function processTheme(db: SupabaseClient, theme: Theme, sources: Source[], blockedDomains: string[]) {
-  console.log(LOG, `=== Tema ${theme.slug} (${sources.length} fontes) ===`);
+async function publishWithAnalysis(db: SupabaseClient, newsId: string, r: AnalysisResult) {
+  const { error: aErr } = await db.from("news_analysis").upsert(
+    {
+      news_id: newsId,
+      summary: r.resumo,
+      relevance: r.relevancia,
+      angle: r.angulo,
+      entities: r.entidades,
+      sentiment: r.sentimento,
+      is_relevant: true,
+      is_spam: false,
+      model: AI_MODEL,
+      prompt_version: PROMPT_VERSION,
+      analyzed_at: new Date().toISOString(),
+    },
+    { onConflict: "news_id" },
+  );
+  if (aErr) console.error(LOG, "news_analysis upsert failed:", aErr.message);
+  await db.from("news").update({ description: r.resumo, status: "publicada" }).eq("id", newsId);
+}
 
-  // 1) Coleta
-  let collected: Candidate[] = [];
-  for (const source of sources) {
-    collected.push(...(await fetchSource(db, source, theme)));
-  }
-  if (collected.length === 0) {
-    console.warn(LOG, `Nenhum item coletado para ${theme.slug}`);
-    return;
-  }
-
-  // 2) Dedup intra-lote (URL canônica + títulos parecidos), mais recentes primeiro
+// ------------------------------------------------------------------
+// Pipeline comum: dedup → filtra conhecidos → anti-spam barato → redirect
+// ------------------------------------------------------------------
+async function dedupCandidates(collected: Candidate[]): Promise<Candidate[]> {
   const seenHash = new Set<string>();
   const uniqueByUrl: Candidate[] = [];
   for (const c of collected) {
@@ -534,9 +687,11 @@ async function processTheme(db: SupabaseClient, theme: Theme, sources: Source[],
   for (const c of uniqueByUrl) {
     if (!deduped.some((d) => titleSimilarity(d.title, c.title) >= 0.55)) deduped.push(c);
   }
-  collected = deduped;
+  return deduped;
+}
 
-  // 3) Ignora o que já conhecemos (news por hash; discarded_news não restauradas por URL)
+async function filterKnown(db: SupabaseClient, collected: Candidate[]): Promise<{ fresh: Candidate[]; restoredByAdmin: Set<string> }> {
+  if (collected.length === 0) return { fresh: [], restoredByAdmin: new Set() };
   const hashes = await Promise.all(collected.map((c) => sha256Hex(canonicalUrl(c.source_url))));
   const { data: known } = await db.from("news").select("url_hash").in("url_hash", hashes);
   const knownHashes = new Set((known ?? []).map((k: { url_hash: string }) => k.url_hash));
@@ -546,11 +701,11 @@ async function processTheme(db: SupabaseClient, theme: Theme, sources: Source[],
     .in("source_url", collected.map((c) => c.source_url));
   const alreadyDiscarded = new Set((discarded ?? []).filter((d: { restored: boolean }) => !d.restored).map((d: { source_url: string }) => d.source_url));
   const restoredByAdmin = new Set((discarded ?? []).filter((d: { restored: boolean }) => d.restored).map((d: { source_url: string }) => d.source_url));
+  const fresh = collected.filter((c, i) => !knownHashes.has(hashes[i]) && !alreadyDiscarded.has(c.source_url));
+  return { fresh, restoredByAdmin };
+}
 
-  let fresh = collected.filter((c, i) => !knownHashes.has(hashes[i]) && !alreadyDiscarded.has(c.source_url));
-  console.log(LOG, `${theme.slug}: ${collected.length} únicas, ${fresh.length} inéditas`);
-
-  // 4) Barreira barata: palavras-chave + redirect para domínio bloqueado
+async function cheapFilters(db: SupabaseClient, fresh: Candidate[], blockedDomains: string[]): Promise<Candidate[]> {
   const passed: Candidate[] = [];
   for (const c of fresh) {
     const kwReason = keywordSpamReason(c.title, c.source_name);
@@ -560,55 +715,152 @@ async function processTheme(db: SupabaseClient, theme: Theme, sources: Source[],
     }
     passed.push(c);
   }
-  fresh = passed.slice(0, CANDIDATES_PER_THEME);
+  const redirectChecks = await Promise.all(passed.map((c) => resolvesToBlockedDomain(c.source_url, blockedDomains)));
+  const out: Candidate[] = [];
+  for (let i = 0; i < passed.length; i++) {
+    if (redirectChecks[i]) await discardNews(db, passed[i], "Redireciona para domínio bloqueado", null);
+    else out.push(passed[i]);
+  }
+  return out;
+}
 
-  const redirectChecks = await Promise.all(fresh.map((c) => resolvesToBlockedDomain(c.source_url, blockedDomains)));
-  const toInsert: Candidate[] = [];
-  for (let i = 0; i < fresh.length; i++) {
-    if (redirectChecks[i]) {
-      await discardNews(db, fresh[i], "Redireciona para domínio bloqueado", null);
-    } else {
-      toInsert.push(fresh[i]);
-    }
+async function insertArchived(db: SupabaseClient, toInsert: Candidate[]): Promise<InsertedRow[]> {
+  if (toInsert.length === 0) return [];
+  const { data, error } = await db
+    .from("news")
+    .upsert(
+      toInsert.map((c) => ({
+        theme_id: c.theme_id,
+        topic: c.topic,
+        title: c.title,
+        description: null,
+        source_name: c.source_name,
+        source_url: c.source_url,
+        published_at: c.published_at,
+        fetched_at: new Date().toISOString(),
+        image_url: null,
+        raw: c.raw,
+        status: "arquivada",
+      })),
+      { onConflict: "url_hash", ignoreDuplicates: true },
+    )
+    .select("id, title, source_name, source_url, published_at");
+  if (error) {
+    console.error(LOG, "Insert em news falhou:", error.message);
+    return [];
+  }
+  return data ?? [];
+}
+
+// ------------------------------------------------------------------
+// Fontes gerais: 1 lote por rodada, a IA atribui o tema
+// ------------------------------------------------------------------
+async function classifyGeneralSources(
+  db: SupabaseClient,
+  generalSources: Source[],
+  themes: Theme[],
+  blockedDomains: string[],
+  gate: GoogleGate,
+): Promise<{ byTheme: Map<string, Preclassified[]>; collectedCount: number }> {
+  const byTheme = new Map<string, Preclassified[]>();
+  if (generalSources.length === 0) return { byTheme, collectedCount: 0 };
+  console.log(LOG, `=== Fontes gerais (${generalSources.length}) ===`);
+
+  let collected: Candidate[] = [];
+  for (const source of generalSources) collected.push(...(await fetchSource(db, source, null, gate)));
+  const collectedCount = collected.length;
+  if (collectedCount === 0) return { byTheme, collectedCount };
+
+  collected = await dedupCandidates(collected);
+  const { fresh } = await filterKnown(db, collected);
+  console.log(LOG, `geral: ${collected.length} únicas, ${fresh.length} inéditas`);
+  const passed = (await cheapFilters(db, fresh, blockedDomains)).slice(0, GENERAL_CANDIDATES_MAX);
+  if (passed.length === 0) return { byTheme, collectedCount };
+
+  // ids temporários só para o lote (itens ainda não estão em news)
+  const inputs: AnalyzeInput[] = passed.map((c, i) => ({ id: `g${i}`, title: c.title, source_name: c.source_name, snippet: c.snippet }));
+  const results = await analyzeBatch(db, { kind: "classificar", themes }, inputs);
+  if (!results) {
+    console.warn(LOG, `geral: IA indisponível — ${passed.length} itens não classificados (voltam na próxima rodada)`);
+    return { byTheme, collectedCount };
   }
 
-  // 5) Insere como arquivada (ON CONFLICT DO NOTHING via url_hash calculado pelo gatilho)
-  let inserted: { id: string; title: string; source_name: string | null; source_url: string; published_at: string }[] = [];
-  if (toInsert.length > 0) {
-    const { data, error } = await db
-      .from("news")
-      .upsert(
-        toInsert.map((c) => ({
-          theme_id: c.theme_id,
-          topic: c.topic,
-          title: c.title,
-          description: null,
-          source_name: c.source_name,
-          source_url: c.source_url,
-          published_at: c.published_at,
-          fetched_at: new Date().toISOString(),
-          image_url: null,
-          raw: c.raw,
-          status: "arquivada",
-        })),
-        { onConflict: "url_hash", ignoreDuplicates: true },
-      )
-      .select("id, title, source_name, source_url, published_at");
-    if (error) {
-      console.error(LOG, `Insert em news falhou (${theme.slug}):`, error.message);
-    } else {
-      inserted = data ?? [];
+  const themeBySlug = new Map(themes.map((t) => [t.slug, t]));
+  const byId = new Map(results.map((r) => [r.id, r]));
+  let assigned = 0, none = 0, spam = 0;
+  for (let i = 0; i < passed.length; i++) {
+    const c = passed[i];
+    const r = byId.get(`g${i}`);
+    if (!r) continue; // sem análise: fica retido, tenta de novo na próxima
+    const raw = JSON.stringify(r);
+    if (r.spam) {
+      spam++;
+      await discardNews(db, c, "Marcada como spam pela IA", raw);
+      continue;
     }
+    if (!r.tema || r.tema === NONE_THEME) {
+      none++;
+      await discardNews(db, c, "Não se enquadra em nenhum tema", raw);
+      continue;
+    }
+    const theme = themeBySlug.get(r.tema);
+    if (!theme) continue; // já validado em analyzeBatch; defesa extra
+    const list = byTheme.get(theme.id) ?? [];
+    list.push({ candidate: { ...c, theme_id: theme.id, topic: theme.slug }, analysis: r });
+    byTheme.set(theme.id, list);
+    assigned++;
   }
-  console.log(LOG, `${theme.slug}: ${inserted.length} novas inseridas`);
+  console.log(LOG, `geral: ${assigned} atribuídas a temas, ${none} sem tema, ${spam} spam`);
+  return { byTheme, collectedCount };
+}
 
-  // Restauradas manualmente pelo admin: publicam sem passar pela IA
+// ------------------------------------------------------------------
+// Processamento por tema
+// ------------------------------------------------------------------
+async function processTheme(
+  db: SupabaseClient,
+  theme: Theme,
+  sources: Source[],
+  blockedDomains: string[],
+  gate: GoogleGate,
+  preclassified: Preclassified[],
+): Promise<{ generalInserted: number }> {
+  console.log(LOG, `=== Tema ${theme.slug} (${sources.length} fontes temáticas + ${preclassified.length} vindas de fontes gerais) ===`);
+  const started = Date.now();
+
+  // 1) Coleta das fontes temáticas
+  let collected: Candidate[] = [];
+  for (const source of sources) collected.push(...(await fetchSource(db, source, theme, gate)));
+  const candidatesIn = collected.length + preclassified.length;
+
+  // 2) Dedup + conhecidos + barreiras baratas (só para as temáticas; as gerais já passaram)
+  collected = await dedupCandidates(collected);
+  const { fresh, restoredByAdmin } = await filterKnown(db, collected);
+  console.log(LOG, `${theme.slug}: ${collected.length} únicas, ${fresh.length} inéditas`);
+  const ownToInsert = (await cheapFilters(db, fresh, blockedDomains)).slice(0, CANDIDATES_PER_THEME);
+
+  // Gerais: só as que não colidem com as temáticas desta rodada
+  const ownUrls = new Set(ownToInsert.map((c) => canonicalUrl(c.source_url)));
+  const generalToInsert = preclassified.filter((p) => !ownUrls.has(canonicalUrl(p.candidate.source_url)));
+  const analysisByUrl = new Map(generalToInsert.map((p) => [canonicalUrl(p.candidate.source_url), p.analysis]));
+
+  // 3) Insere tudo como arquivada
+  const inserted = await insertArchived(db, [...ownToInsert, ...generalToInsert.map((p) => p.candidate)]);
+  let generalInserted = 0;
+  for (const r of inserted) if (analysisByUrl.has(canonicalUrl(r.source_url))) generalInserted++;
+  console.log(LOG, `${theme.slug}: ${inserted.length} novas inseridas (${generalInserted} de fontes gerais)`);
+
+  // 4) Restauradas manualmente pelo admin: publicam sem passar pela IA
   const restoredNow = inserted.filter((r) => restoredByAdmin.has(r.source_url));
-  if (restoredNow.length) {
-    await db.from("news").update({ status: "publicada" }).in("id", restoredNow.map((r) => r.id));
+  if (restoredNow.length) await db.from("news").update({ status: "publicada" }).in("id", restoredNow.map((r) => r.id));
+
+  // 5) Gerais já classificadas: publica direto com a análise do lote geral
+  for (const r of inserted) {
+    const a = analysisByUrl.get(canonicalUrl(r.source_url));
+    if (a) await publishWithAnalysis(db, r.id, a);
   }
 
-  // 6) IA em lote: novas + publicadas antigas ainda sem análise (backfill)
+  // 6) IA em lote (validação): novas temáticas + publicadas antigas sem análise (backfill)
   const { data: unanalyzed } = await db
     .from("news")
     .select("id, title, source_name, source_url, published_at, news_analysis(id)")
@@ -618,13 +870,21 @@ async function processTheme(db: SupabaseClient, theme: Theme, sources: Source[],
     .order("published_at", { ascending: false })
     .limit(20);
 
-  const toAnalyzeMap = new Map<string, { id: string; title: string; source_name: string | null; source_url: string; published_at: string }>();
-  for (const r of inserted) if (!restoredByAdmin.has(r.source_url)) toAnalyzeMap.set(r.id, r);
+  const snippetByUrl = new Map(ownToInsert.map((c) => [c.source_url, c.snippet]));
+  const toAnalyzeMap = new Map<string, InsertedRow>();
+  for (const r of inserted) {
+    if (restoredByAdmin.has(r.source_url) || analysisByUrl.has(canonicalUrl(r.source_url))) continue;
+    toAnalyzeMap.set(r.id, r);
+  }
   for (const r of unanalyzed ?? []) toAnalyzeMap.set(r.id, r);
   const toAnalyze = [...toAnalyzeMap.values()];
 
   if (toAnalyze.length > 0) {
-    const results = await analyzeBatch(db, theme, toAnalyze);
+    const results = await analyzeBatch(
+      db,
+      { kind: "validar", theme },
+      toAnalyze.map((r) => ({ id: r.id, title: r.title, source_name: r.source_name, snippet: snippetByUrl.get(r.source_url) ?? null })),
+    );
     if (results) {
       const byId = new Map(results.map((r) => [r.id, r]));
       for (const item of toAnalyze) {
@@ -633,35 +893,16 @@ async function processTheme(db: SupabaseClient, theme: Theme, sources: Source[],
           console.warn(LOG, `Item sem análise retornada (fica retido): ${item.title}`);
           continue;
         }
-        const raw = JSON.stringify(r);
         if (r.spam || !r.relevante) {
           await discardNews(
             db,
             { id: item.id, theme_id: theme.id, topic: theme.slug, title: item.title, description: r.resumo, source_name: item.source_name, source_url: item.source_url, published_at: item.published_at },
             r.spam ? "Marcada como spam pela IA" : "Marcada como irrelevante pela IA para o tema",
-            raw,
+            JSON.stringify(r),
           );
           continue;
         }
-        const { error: aErr } = await db.from("news_analysis").upsert(
-          {
-            news_id: item.id,
-            summary: r.resumo,
-            relevance: r.relevancia,
-            angle: r.angulo,
-            entities: r.entidades,
-            sentiment: r.sentimento,
-            is_relevant: true,
-            is_spam: false,
-            model: AI_MODEL,
-            prompt_version: PROMPT_VERSION,
-            analyzed_at: new Date().toISOString(),
-          },
-          { onConflict: "news_id" },
-        );
-        if (aErr) console.error(LOG, "news_analysis upsert failed:", aErr.message);
-
-        await db.from("news").update({ description: r.resumo, status: "publicada" }).eq("id", item.id);
+        await publishWithAnalysis(db, item.id, r);
       }
     } else {
       console.warn(LOG, `${theme.slug}: IA indisponível — ${toAnalyze.length} itens retidos como arquivada/sem análise`);
@@ -680,6 +921,19 @@ async function processTheme(db: SupabaseClient, theme: Theme, sources: Source[],
     await db.from("news").update({ status: "arquivada" }).in("id", excess);
     console.log(LOG, `${theme.slug}: ${excess.length} arquivadas por excedente`);
   }
+
+  // 8) Métrica central: candidatos coletados vs. entradas reais em news
+  await logCall(db, {
+    integration: "ingestao",
+    endpoint: theme.slug,
+    method: "PIPELINE",
+    duration_ms: Date.now() - started,
+    ok: true,
+    items_in: candidatesIn,
+    items_new: inserted.length,
+  });
+
+  return { generalInserted };
 }
 
 // ------------------------------------------------------------------
@@ -702,49 +956,89 @@ async function applyRetention(db: SupabaseClient) {
 }
 
 // ------------------------------------------------------------------
+// Rodada completa (roda em segundo plano — o cron/cliente não precisa esperar)
+// ------------------------------------------------------------------
+async function runCollection(): Promise<void> {
+  const startedAt = Date.now();
+  const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+  const [{ data: themes }, { data: sources }, { data: settings }] = await Promise.all([
+    db.from("themes").select("id, slug, name, description").eq("active", true).order("sort_order"),
+    db.from("sources").select("id, theme_id, kind, name, query, url, max_items, consecutive_failures").eq("active", true).order("created_at"),
+    db.from("app_settings").select("value").eq("key", "blocked_domains").maybeSingle(),
+  ]);
+
+  const activeThemes = (themes ?? []) as Theme[];
+  const allSources = (sources ?? []) as Source[];
+  const generalSources = allSources.filter((s) => s.theme_id === null);
+  const blockedDomains: string[] = Array.isArray(settings?.value) ? (settings!.value as unknown[]).filter((d): d is string => typeof d === "string") : [];
+  console.log(LOG, `Iniciando: ${activeThemes.length} temas, ${allSources.length} fontes (${generalSources.length} gerais), ${blockedDomains.length} domínios bloqueados`);
+
+  const gate = new GoogleGate();
+
+  // Fontes gerais: uma vez por rodada, a IA atribui o tema
+  const generalStarted = Date.now();
+  let general: { byTheme: Map<string, Preclassified[]>; collectedCount: number } = { byTheme: new Map(), collectedCount: 0 };
+  try {
+    general = await classifyGeneralSources(db, generalSources, activeThemes, blockedDomains, gate);
+  } catch (e) {
+    console.error(LOG, "Erro nas fontes gerais:", e instanceof Error ? e.message : String(e));
+  }
+
+  let generalInsertedTotal = 0;
+  for (const theme of activeThemes) {
+    const themeSources = allSources.filter((s) => s.theme_id === theme.id);
+    const pre = general.byTheme.get(theme.id) ?? [];
+    if (themeSources.length === 0 && pre.length === 0) {
+      console.warn(LOG, `Tema ${theme.slug} sem fontes ativas`);
+      continue;
+    }
+    try {
+      const { generalInserted } = await processTheme(db, theme, themeSources, blockedDomains, gate, pre);
+      generalInsertedTotal += generalInserted;
+    } catch (e) {
+      console.error(LOG, `Erro no tema ${theme.slug}:`, e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  if (generalSources.length > 0) {
+    await logCall(db, {
+      integration: "ingestao",
+      endpoint: "geral",
+      method: "PIPELINE",
+      duration_ms: Date.now() - generalStarted,
+      ok: true,
+      items_in: general.collectedCount,
+      items_new: generalInsertedTotal,
+    });
+  }
+
+  await applyRetention(db);
+  console.log(LOG, `Concluído em ${Date.now() - startedAt}ms`);
+}
+
+// ------------------------------------------------------------------
 // Entrypoint
 // ------------------------------------------------------------------
+declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void } | undefined;
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  const startedAt = Date.now();
-  try {
-    const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const job = runCollection().catch((e) => console.error(LOG, "Erro fatal", e));
 
-    const [{ data: themes }, { data: sources }, { data: settings }] = await Promise.all([
-      db.from("themes").select("id, slug, name, description").eq("active", true).order("sort_order"),
-      db.from("sources").select("id, theme_id, kind, name, query, max_items, consecutive_failures").eq("active", true).eq("kind", "google_news_rss"),
-      db.from("app_settings").select("value").eq("key", "blocked_domains").maybeSingle(),
-    ]);
-
-    const blockedDomains: string[] = Array.isArray(settings?.value) ? (settings!.value as unknown[]).filter((d): d is string => typeof d === "string") : [];
-    console.log(LOG, `Iniciando: ${themes?.length ?? 0} temas, ${sources?.length ?? 0} fontes, ${blockedDomains.length} domínios bloqueados`);
-
-    for (const theme of (themes ?? []) as Theme[]) {
-      const themeSources = ((sources ?? []) as Source[]).filter((s) => s.theme_id === theme.id);
-      if (themeSources.length === 0) {
-        console.warn(LOG, `Tema ${theme.slug} sem fontes ativas`);
-        continue;
-      }
-      try {
-        await processTheme(db, theme, themeSources, blockedDomains);
-      } catch (e) {
-        console.error(LOG, `Erro no tema ${theme.slug}:`, e instanceof Error ? e.message : String(e));
-      }
-    }
-
-    await applyRetention(db);
-
-    console.log(LOG, `Concluído em ${Date.now() - startedAt}ms`);
-    return new Response(JSON.stringify({ success: true, duration_ms: Date.now() - startedAt }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (error) {
-    console.error(LOG, "Erro fatal", error);
-    return new Response(JSON.stringify({ error: "Failed to refresh news" }), {
-      status: 500,
+  if (typeof EdgeRuntime !== "undefined" && EdgeRuntime?.waitUntil) {
+    // Responde já: a coleta leva minutos e o chamador (cron/admin) não deve segurar a conexão
+    EdgeRuntime.waitUntil(job);
+    return new Response(JSON.stringify({ accepted: true, message: "Coleta iniciada em segundo plano" }), {
+      status: 202,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
+
+  await job;
+  return new Response(JSON.stringify({ success: true }), {
+    status: 200,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 });

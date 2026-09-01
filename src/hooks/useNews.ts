@@ -58,31 +58,18 @@ export function useNewsById(id: string) {
   });
 }
 
-export function useRefreshNews() {
+/** Última coleta bem-sucedida, derivada do registro real de chamadas de integração. */
+export function useLastNewsRefresh() {
   return useQuery({
-    queryKey: ['news', 'refresh'],
+    queryKey: ['news', 'last-refresh'],
     queryFn: async () => {
-      logger.log('[useRefreshNews] Checking refresh status');
-      
-      const { data: control } = await supabase
-        .from('news_refresh_control')
-        .select('last_refresh_at')
-        .limit(1)
-        .maybeSingle();
-      
-      if (control) {
-        const lastRefresh = new Date(control.last_refresh_at);
-        const now = new Date();
-        const diffMinutes = (now.getTime() - lastRefresh.getTime()) / 1000 / 60;
-        
-        logger.log('[useRefreshNews] Last refresh was', diffMinutes.toFixed(0), 'minutes ago');
+      const { data, error } = await supabase.rpc('last_news_refresh_at');
+      if (error) {
+        logger.error('[useLastNewsRefresh] Error', error);
+        throw error;
       }
-      
-      // News refresh is handled by cron job with NEWS_REFRESH_SECRET
-      // Client only checks status, doesn't trigger refresh
-      return true;
+      return data ? new Date(data) : null;
     },
-    staleTime: 1000 * 60 * 30, // 30 minutes
-    refetchOnWindowFocus: false,
+    staleTime: 1000 * 60 * 5,
   });
 }

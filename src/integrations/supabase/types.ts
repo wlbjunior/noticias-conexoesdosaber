@@ -84,7 +84,7 @@ export type Database = {
           source_url: string
           theme_id: string | null
           title: string
-          topic: Database["public"]["Enums"]["news_topic"]
+          topic: Database["public"]["Enums"]["news_topic"] | null
         }
         Insert: {
           ai_raw_answer?: string | null
@@ -98,7 +98,7 @@ export type Database = {
           source_url: string
           theme_id?: string | null
           title: string
-          topic: Database["public"]["Enums"]["news_topic"]
+          topic?: Database["public"]["Enums"]["news_topic"] | null
         }
         Update: {
           ai_raw_answer?: string | null
@@ -112,7 +112,7 @@ export type Database = {
           source_url?: string
           theme_id?: string | null
           title?: string
-          topic?: Database["public"]["Enums"]["news_topic"]
+          topic?: Database["public"]["Enums"]["news_topic"] | null
         }
         Relationships: [
           {
@@ -474,9 +474,10 @@ export type Database = {
           last_status: string
           max_items: number
           name: string
-          query: string
-          theme_id: string
+          query: string | null
+          theme_id: string | null
           updated_at: string
+          url: string | null
         }
         Insert: {
           active?: boolean
@@ -489,9 +490,10 @@ export type Database = {
           last_status?: string
           max_items?: number
           name: string
-          query: string
-          theme_id: string
+          query?: string | null
+          theme_id?: string | null
           updated_at?: string
+          url?: string | null
         }
         Update: {
           active?: boolean
@@ -504,9 +506,10 @@ export type Database = {
           last_status?: string
           max_items?: number
           name?: string
-          query?: string
-          theme_id?: string
+          query?: string | null
+          theme_id?: string | null
           updated_at?: string
+          url?: string | null
         }
         Relationships: [
           {
@@ -571,12 +574,7 @@ export type Database = {
       }
     }
     Views: {
-      news_refresh_control: {
-        Row: {
-          last_refresh_at: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       canonical_url: { Args: { u: string }; Returns: string }

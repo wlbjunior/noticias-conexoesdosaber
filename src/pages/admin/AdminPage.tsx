@@ -63,8 +63,6 @@ type NewsletterSubscription = {
 };
 
 type RefreshControl = {
-  id: string;
-  created_at: string;
   last_refresh_at: string;
 };
 
@@ -194,12 +192,7 @@ export default function AdminPage() {
           .from("newsletter_subscriptions")
           .select("email, topics, confirmed, created_at, last_sent_at")
           .order("created_at", { ascending: false }),
-        supabase
-          .from("news_refresh_control")
-          .select("*")
-          .order("last_refresh_at", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
+        supabase.rpc("last_news_refresh_at"),
         supabase
           .from("internal_news")
           .select("*")
@@ -218,7 +211,7 @@ export default function AdminPage() {
 
       setMessages((messagesRes.data || []) as ContactMessage[]);
       setNewsletter((newsletterRes.data || []) as NewsletterSubscription[]);
-      setRefreshInfo((refreshRes.data as RefreshControl | null) ?? null);
+      setRefreshInfo(refreshRes.data ? { last_refresh_at: refreshRes.data } : null);
       setInternalNews((internalNewsRes.data || []) as InternalNews[]);
       setDiscardedNews((discardedNewsRes.data || []) as DiscardedNews[]);
     } catch (error) {
