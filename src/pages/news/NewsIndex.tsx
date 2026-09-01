@@ -1,4 +1,4 @@
-import { useMemo, useEffect } from 'react';
+import { useMemo } from 'react';
 import { RefreshCw, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -8,14 +8,11 @@ import { HeroNewsSkeleton } from '@/components/news/NewsCardSkeleton';
 import { SEO } from '@/components/SEO';
 import { PageTransition } from '@/components/layout/PageTransition';
 import { useInfiniteNews } from '@/hooks/useInfiniteNews';
-import { useRefreshNews } from '@/hooks/useNews';
 import { useNewsSearch } from '@/context/NewsSearchContext';
-import { logger } from '@/lib/logger';
 
 
 export default function NewsIndex() {
   const { query: searchQuery } = useNewsSearch();
-  const { refetch: triggerRefresh } = useRefreshNews();
   
   const { 
     data, 
@@ -26,11 +23,6 @@ export default function NewsIndex() {
     isFetchingNextPage,
     fetchNextPage,
   } = useInfiniteNews(undefined, searchQuery);
-
-  useEffect(() => {
-    logger.log('[NewsIndex] Mounted, checking for refresh');
-    triggerRefresh();
-  }, [triggerRefresh]);
 
   const allNews = useMemo(() => {
     return data?.pages.flatMap(page => page.news) || [];
