@@ -211,7 +211,7 @@ export default function AdminPage() {
 
       setMessages((messagesRes.data || []) as ContactMessage[]);
       setNewsletter((newsletterRes.data || []) as NewsletterSubscription[]);
-      setRefreshInfo((refreshRes.data as RefreshControl | null) ?? null);
+      setRefreshInfo(refreshRes.data ? { last_refresh_at: refreshRes.data } : null);
       setInternalNews((internalNewsRes.data || []) as InternalNews[]);
       setDiscardedNews((discardedNewsRes.data || []) as DiscardedNews[]);
     } catch (error) {
