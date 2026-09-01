@@ -84,7 +84,7 @@ export type Database = {
           source_url: string
           theme_id: string | null
           title: string
-          topic: Database["public"]["Enums"]["news_topic"]
+          topic: Database["public"]["Enums"]["news_topic"] | null
         }
         Insert: {
           ai_raw_answer?: string | null
@@ -98,7 +98,7 @@ export type Database = {
           source_url: string
           theme_id?: string | null
           title: string
-          topic: Database["public"]["Enums"]["news_topic"]
+          topic?: Database["public"]["Enums"]["news_topic"] | null
         }
         Update: {
           ai_raw_answer?: string | null
@@ -112,7 +112,7 @@ export type Database = {
           source_url?: string
           theme_id?: string | null
           title?: string
-          topic?: Database["public"]["Enums"]["news_topic"]
+          topic?: Database["public"]["Enums"]["news_topic"] | null
         }
         Relationships: [
           {
