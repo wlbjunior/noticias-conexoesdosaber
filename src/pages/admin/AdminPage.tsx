@@ -63,8 +63,6 @@ type NewsletterSubscription = {
 };
 
 type RefreshControl = {
-  id: string;
-  created_at: string;
   last_refresh_at: string;
 };
 
