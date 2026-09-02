@@ -462,6 +462,63 @@ export type Database = {
         }
         Relationships: []
       }
+      pautas: {
+        Row: {
+          angle: string | null
+          assignee: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          news_id: string | null
+          notes: string | null
+          status: string
+          theme_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          angle?: string | null
+          assignee?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          news_id?: string | null
+          notes?: string | null
+          status?: string
+          theme_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          angle?: string | null
+          assignee?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          news_id?: string | null
+          notes?: string | null
+          status?: string
+          theme_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pautas_news_id_fkey"
+            columns: ["news_id"]
+            isOneToOne: false
+            referencedRelation: "news"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pautas_theme_id_fkey"
+            columns: ["theme_id"]
+            isOneToOne: false
+            referencedRelation: "themes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sources: {
         Row: {
           active: boolean
@@ -577,8 +634,24 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_dashboard_stats: { Args: never; Returns: Json }
+      admin_integration_summary: {
+        Args: never
+        Returns: {
+          avg_duration_ms: number
+          integration: string
+          last_called_at: string
+          last_error: string
+          last_http_status: number
+          last_ok: boolean
+          total_calls: number
+          total_items_in: number
+          total_items_new: number
+        }[]
+      }
       canonical_url: { Args: { u: string }; Returns: string }
       cleanup_old_rate_limits: { Args: never; Returns: undefined }
+      get_blocked_domains: { Args: never; Returns: string[] }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
