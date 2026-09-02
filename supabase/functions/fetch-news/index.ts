@@ -937,21 +937,24 @@ async function processTheme(
 }
 
 // ------------------------------------------------------------------
-// Retenção: arquivadas > 90 dias sem cliques
+// Retenção: arquivadas > 90 dias sem cliques e sem pauta associada
 // ------------------------------------------------------------------
 async function applyRetention(db: SupabaseClient) {
   const cutoff = new Date(Date.now() - ARCHIVE_RETENTION_DAYS * 86400000).toISOString();
   const { data: old } = await db
     .from("news")
-    .select("id, news_clicks(id)")
+    .select("id, news_clicks(id), pautas(id)")
     .eq("status", "arquivada")
     .lt("fetched_at", cutoff)
     .limit(500);
-  const ids = (old ?? []).filter((n: { news_clicks: unknown[] }) => !n.news_clicks?.length).map((n: { id: string }) => n.id);
+  type OldRow = { id: string; news_clicks: unknown[] | null; pautas: unknown[] | null };
+  const ids = ((old ?? []) as OldRow[])
+    .filter((n) => !n.news_clicks?.length && !n.pautas?.length)
+    .map((n) => n.id);
   if (ids.length) {
     const { error } = await db.from("news").delete().in("id", ids);
     if (error) console.error(LOG, "retention delete failed:", error.message);
-    else console.log(LOG, `Retenção: ${ids.length} arquivadas antigas removidas`);
+    else console.log(LOG, `Retenção: ${ids.length} arquivadas antigas removidas (preservadas: com clique ou com pauta)`);
   }
 }
 
