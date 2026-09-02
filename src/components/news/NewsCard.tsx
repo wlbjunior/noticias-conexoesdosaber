@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { NewsItem, getTopicStyle } from '@/lib/news/types';
 import { NewBadge } from './NewBadge';
 import { useNewsClick } from '@/hooks/useNewsClick';
+import { useBlockedDomains, isBlockedUrl } from '@/hooks/useBlockedDomains';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -18,27 +19,18 @@ interface NewsCardProps {
   variant?: 'default' | 'compact' | 'featured';
 }
 
-function isUnsafeUrl(url: string): boolean {
-  try {
-    const parsed = new URL(url);
-    const blockedHosts = ['www.a8n8m7.com', 'a8n8m7.com'];
-    return blockedHosts.includes(parsed.hostname);
-  } catch {
-    return true;
-  }
-}
-
 function NewsCardComponent({ news, showTopic = true, animationDelay = 0, variant = 'default' }: NewsCardProps) {
   const topicStyle = getTopicStyle(news.topic);
   const publishedDate = new Date(news.published_at);
   const { trackClick } = useNewsClick();
+  const { data: blockedDomains = [] } = useBlockedDomains();
   const { toast } = useToast();
 
 
   const handleSourceClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     if (!news.source_url) return;
 
-    if (isUnsafeUrl(news.source_url)) {
+    if (isBlockedUrl(news.source_url, blockedDomains)) {
       event.preventDefault();
       toast({
         title: 'Link suspeito bloqueado',
