@@ -1025,8 +1025,66 @@ async function runCollection(): Promise<void> {
 // ------------------------------------------------------------------
 declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void } | undefined;
 
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+/** Confirma que quem chama é admin/moderator autenticado (usado só no modo de teste de fonte). */
+async function isEditorialStaff(req: Request): Promise<boolean> {
+  const auth = req.headers.get("Authorization");
+  if (!auth?.startsWith("Bearer ")) return false;
+  const userClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    global: { headers: { Authorization: auth } },
+  });
+  const { data: { user } } = await userClient.auth.getUser();
+  if (!user) return false;
+  const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const [{ data: admin }, { data: mod }] = await Promise.all([
+    db.rpc("has_role", { _user_id: user.id, _role: "admin" }),
+    db.rpc("has_role", { _user_id: user.id, _role: "moderator" }),
+  ]);
+  return Boolean(admin || mod);
+}
+
+/** Modo "Testar agora": busca uma única fonte, grava saúde + integration_calls e responde na hora. */
+async function testSingleSource(sourceId: string): Promise<Response> {
+  const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const { data: source } = await db
+    .from("sources")
+    .select("id, theme_id, kind, name, query, url, max_items, consecutive_failures")
+    .eq("id", sourceId)
+    .maybeSingle();
+  if (!source) return json({ error: "Fonte não encontrada" }, 404);
+  let theme: Theme | null = null;
+  if (source.theme_id) {
+    const { data } = await db.from("themes").select("id, slug, name, description").eq("id", source.theme_id).maybeSingle();
+    theme = (data as Theme | null) ?? null;
+  }
+  const candidates = await fetchSource(db, source as Source, theme, new GoogleGate());
+  const { data: updated } = await db
+    .from("sources")
+    .select("last_status, last_error, last_run_at, consecutive_failures")
+    .eq("id", sourceId)
+    .maybeSingle();
+  return json({ ok: updated?.last_status === "ok", items: candidates.length, source: updated });
+}
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  if (req.method === "POST") {
+    let body: { action?: string; source_id?: string } = {};
+    try {
+      const text = await req.text();
+      if (text) body = JSON.parse(text);
+    } catch {
+      /* corpo vazio ou não-JSON: segue como coleta completa */
+    }
+    if (body.action === "test_source") {
+      if (typeof body.source_id !== "string" || !/^[0-9a-f-]{36}$/i.test(body.source_id)) return json({ error: "source_id inválido" }, 400);
+      if (!(await isEditorialStaff(req))) return json({ error: "Acesso restrito à equipe editorial" }, 403);
+      return await testSingleSource(body.source_id);
+    }
+  }
 
   const job = runCollection().catch((e) => console.error(LOG, "Erro fatal", e));
 
