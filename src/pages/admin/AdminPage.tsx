@@ -24,6 +24,10 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { CalendarIcon, Loader2, ShieldAlert, Mail, RefreshCw, FileText, Plus, Edit3, Trash2, Send } from "lucide-react";
 import { logger } from "@/lib/logger";
+import { DashboardTab } from "./DashboardTab";
+import { IntegrationsTab } from "./IntegrationsTab";
+import { PautasTab } from "./PautasTab";
+import { SourcesThemesTab, useAdminThemes } from "./SourcesThemesTab";
 
 const adminEmail = "wlbjunior@gmail.com";
 
@@ -107,6 +111,7 @@ export default function AdminPage() {
   const [dataLoading, setDataLoading] = useState(false);
   const [isRunningNewsRefresh, setIsRunningNewsRefresh] = useState(false);
   const [isSendingNewsletter, setIsSendingNewsletter] = useState(false);
+  const { data: adminThemes = [] } = useAdminThemes();
  
   const [statusFilter, setStatusFilter] = useState<"all" | MessageStatus>("all");
   const [typeFilter, setTypeFilter] = useState<"all" | "contato" | "parceria">("all");
@@ -579,14 +584,23 @@ export default function AdminPage() {
         </div>
       </header>
 
-      <Tabs defaultValue="messages" className="space-y-6">
-        <TabsList>
+      <Tabs defaultValue="dashboard" className="space-y-6">
+        <TabsList className="h-auto w-full flex-wrap justify-start gap-1 bg-muted/70 p-1">
+          <TabsTrigger value="dashboard">Painel</TabsTrigger>
+          <TabsTrigger value="integrations">Integrações</TabsTrigger>
+          <TabsTrigger value="sources-themes">Fontes e temas</TabsTrigger>
+          <TabsTrigger value="pautas">Pautas</TabsTrigger>
           <TabsTrigger value="messages">Mensagens de Contato e Parcerias</TabsTrigger>
           <TabsTrigger value="newsletter">Assinantes do Newsletter</TabsTrigger>
           <TabsTrigger value="internal-news">Notícias internas</TabsTrigger>
           <TabsTrigger value="discarded-news">Notícias descartadas pela IA</TabsTrigger>
           <TabsTrigger value="status">Status das Atualizações</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="dashboard"><DashboardTab onGoToSources={() => document.querySelector<HTMLButtonElement>('[data-state][value="sources-themes"]')?.click()} /></TabsContent>
+        <TabsContent value="integrations"><IntegrationsTab /></TabsContent>
+        <TabsContent value="sources-themes"><SourcesThemesTab /></TabsContent>
+        <TabsContent value="pautas"><PautasTab themes={adminThemes} /></TabsContent>
 
         <TabsContent value="messages" className="space-y-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
