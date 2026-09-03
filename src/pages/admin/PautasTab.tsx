@@ -192,7 +192,7 @@ export function PautasTab({ themes }: { themes: ThemeRow[] }) {
               <div className="space-y-1"><Label htmlFor="pauta-notes">Notas</Label><Textarea id="pauta-notes" rows={3} value={editing.notes ?? ""} onChange={(e) => setEditing({ ...editing, notes: e.target.value })} /></div>
               <div className="flex items-center justify-between pt-2">
                 {editing.id ? (
-                  <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDelete(editing.id!)}>
+                  <Button variant="ghost" size="sm" className="text-destructive" onClick={() => editing.id && handleDelete(editing.id)}>
                     <Trash2 className="mr-1 h-4 w-4" aria-hidden="true" /> Excluir
                   </Button>
                 ) : <span />}
