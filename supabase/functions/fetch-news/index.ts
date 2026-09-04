@@ -880,12 +880,13 @@ async function processTheme(
     if (a) await publishWithAnalysis(db, r.id, a);
   }
 
-  // 6) IA em lote (validação): novas temáticas + publicadas antigas sem análise (backfill)
+  // 6) IA em lote (validação): novas temáticas + pendentes de rodadas anteriores (backfill).
+  //    Inclui as "arquivada" sem análise: são as retidas quando a IA falhou fechada em rodadas passadas.
   const { data: unanalyzed } = await db
     .from("news")
     .select("id, title, source_name, source_url, published_at, news_analysis(id)")
     .eq("theme_id", theme.id)
-    .eq("status", "publicada")
+    .in("status", ["publicada", "arquivada"])
     .is("news_analysis", null)
     .order("published_at", { ascending: false })
     .limit(20);
