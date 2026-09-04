@@ -495,6 +495,14 @@ interface AnalyzeInput {
   snippet?: string | null;
 }
 
+// Disjuntor da IA dentro de uma execução: 402 (sem créditos) e 403 (bloqueio de política)
+// não são transitórios — após o primeiro, as demais chamadas da rodada são puladas.
+const aiState: { blockedStatus: number | null; lastStatus: number | null } = { blockedStatus: null, lastStatus: null };
+function resetAiState() {
+  aiState.blockedStatus = null;
+  aiState.lastStatus = null;
+}
+
 async function analyzeBatch(
   db: SupabaseClient,
   mode: { kind: "validar"; theme: Theme } | { kind: "classificar"; themes: Theme[] },
@@ -503,6 +511,10 @@ async function analyzeBatch(
   const apiKey = Deno.env.get("LOVABLE_API_KEY");
   if (!apiKey) {
     console.warn(LOG, "LOVABLE_API_KEY ausente — itens ficam retidos sem análise");
+    return null;
+  }
+  if (aiState.blockedStatus !== null) {
+    console.warn(LOG, `IA bloqueada nesta execução (HTTP ${aiState.blockedStatus}) — lote pulado`);
     return null;
   }
 
