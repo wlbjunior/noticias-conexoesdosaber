@@ -560,13 +560,21 @@ async function analyzeBatch(
         }),
       });
       status = res.status;
+      aiState.lastStatus = status;
       const duration = Date.now() - started;
 
       if (!res.ok) {
         const body = await res.text();
         await logCall(db, { integration: "lovable_ai", endpoint, method: "POST", http_status: status, duration_ms: duration, ok: false, items_in: items.length, error: body.slice(0, 500) });
+        if (status === 402 || status === 403) {
+          // Terminal: sem créditos / bloqueado por política. Não há retry e o resto da execução é pulado.
+          aiState.blockedStatus = status;
+          console.error(LOG, `IA ${status} (${endpointTag}) — disjuntor aberto para o resto desta execução`);
+          return null;
+        }
         if ((status === 429 || status >= 500) && attempt < AI_MAX_RETRIES) {
-          const wait = 2000 * 2 ** (attempt - 1);
+          const retryAfter = Number(res.headers.get("Retry-After"));
+          const wait = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 2000 * 2 ** (attempt - 1);
           console.warn(LOG, `IA ${status} (${endpointTag}), tentativa ${attempt}, aguardando ${wait}ms`);
           await sleep(wait);
           continue;
