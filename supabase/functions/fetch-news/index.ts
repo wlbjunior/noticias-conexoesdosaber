@@ -1216,8 +1216,19 @@ serve(async (req: Request) => {
       if (!(await isEditorialStaff(req))) return json({ error: "Acesso restrito à equipe editorial" }, 403);
       return await testSingleSource(body.source_id);
     }
+    if (body.action === "classify_pending") {
+      if (!(await isEditorialStaff(req))) return json({ error: "Acesso restrito à equipe editorial" }, 403);
+      const pendingJob = classifyPending().catch((e) => console.error(LOG, "Erro fatal (classificar pendentes)", e));
+      if (typeof EdgeRuntime !== "undefined" && EdgeRuntime?.waitUntil) {
+        EdgeRuntime.waitUntil(pendingJob);
+        return json({ accepted: true, message: "Classificação dos pendentes iniciada em segundo plano" }, 202);
+      }
+      const result = await pendingJob;
+      return json({ success: true, result });
+    }
   }
 
+  resetAiState();
   const job = runCollection().catch((e) => console.error(LOG, "Erro fatal", e));
 
   if (typeof EdgeRuntime !== "undefined" && EdgeRuntime?.waitUntil) {
