@@ -56,13 +56,19 @@ function useIntegrations() {
   });
 }
 
-type State = "ok" | "erro" | "nunca";
+type State = "ok" | "erro" | "sem_creditos" | "nunca";
 
 function StateBadge({ state }: { state: State }) {
   if (state === "ok")
     return (
       <Badge className="gap-1 bg-success text-success-foreground hover:bg-success">
         <CheckCircle2 className="h-3 w-3" aria-hidden="true" /> Funcionando
+      </Badge>
+    );
+  if (state === "sem_creditos")
+    return (
+      <Badge className="gap-1 bg-warning text-warning-foreground hover:bg-warning">
+        <CreditCard className="h-3 w-3" aria-hidden="true" /> Sem créditos
       </Badge>
     );
   if (state === "erro")
