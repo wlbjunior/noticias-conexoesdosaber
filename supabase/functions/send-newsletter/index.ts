@@ -1,21 +1,24 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { Resend } from "https://esm.sh/resend@2.0.0";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+const LOG = "[NewsletterSend]";
+const RESEND_ENDPOINT = "https://api.resend.com/emails";
+const MAX_PER_TOPIC = 3;
+const SITE_URL = "https://boletim.conexoesdosaber.com.br";
 
 interface NewsItem {
   id: string;
   title: string;
+  description: string | null;
   topic: string;
   source_url: string;
   source_name: string | null;
   published_at: string;
+  fetched_at: string;
 }
 
 interface Subscriber {
@@ -34,226 +37,199 @@ const topicLabels: Record<string, string> = {
   psicologia: "Psicologia",
 };
 
-function generateEmailHtml(news: NewsItem[], unsubscribeUrl: string): string {
-  const groupedNews = news.reduce((acc, item) => {
-    if (!acc[item.topic]) acc[item.topic] = [];
-    acc[item.topic].push(item);
-    return acc;
-  }, {} as Record<string, NewsItem[]>);
+const maskEmail = (email: string): string => email.replace(/(.{2}).*(@.*)/, "$1***$2");
 
-  const newsHtml = Object.entries(groupedNews)
-    .map(([topic, items]) => `
-      <div style="margin-bottom: 24px;">
-        <h2 style="color: #333; font-size: 18px; border-bottom: 2px solid #1E90FF; padding-bottom: 8px; margin-bottom: 16px;">
-          ${topicLabels[topic] || topic}
-        </h2>
-        ${items.map(item => `
-          <div style="margin-bottom: 16px; padding: 12px; background: #f9f9f9; border-radius: 8px;">
-            <h3 style="margin: 0 0 8px 0; font-size: 16px;">
-              <a href="${item.source_url}" style="color: #1a1a1a; text-decoration: none;" target="_blank">
-                ${item.title}
-              </a>
-            </h3>
-            <p style="margin: 0; font-size: 12px; color: #666;">
-              ${item.source_name ? `Fonte: ${item.source_name}` : ''} 
-              ${new Date(item.published_at).toLocaleDateString('pt-BR')}
-            </p>
-          </div>
-        `).join('')}
-      </div>
-    `).join('');
-
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    </head>
-    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #fff;">
-      <header style="text-align: center; margin-bottom: 32px;">
-        <h1 style="color: #1a1a1a; font-size: 24px; margin: 0;">📰 Notícias Temáticas</h1>
-        <p style="color: #666; font-size: 14px; margin-top: 8px;">Seu resumo diário de notícias</p>
-      </header>
-      
-      <main>
-        ${newsHtml}
-      </main>
-      
-      <footer style="margin-top: 32px; padding-top: 16px; border-top: 1px solid #eee; text-align: center;">
-        <p style="font-size: 12px; color: #999;">
-          Você está recebendo este email porque se inscreveu na nossa newsletter.
-        </p>
-        <p style="font-size: 12px; margin-top: 8px;">
-          <a href="${unsubscribeUrl}" style="color: #666;">Cancelar inscrição</a>
-        </p>
-      </footer>
-    </body>
-    </html>
-  `;
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+function generateEmailHtml(news: NewsItem[], unsubscribeUrl: string): string {
+  const grouped = news.reduce<Record<string, NewsItem[]>>((acc, item) => {
+    (acc[item.topic] ??= []).push(item);
+    return acc;
+  }, {});
+
+  const newsHtml = Object.entries(grouped)
+    .map(
+      ([topic, items]) => `
+      <div style="margin-bottom: 28px;">
+        <h2 style="font-family: Georgia, 'Noto Serif', serif; color: #041026; font-size: 18px; border-bottom: 2px solid #fdd186; padding-bottom: 8px; margin: 0 0 16px 0;">
+          ${escapeHtml(topicLabels[topic] || topic)}
+        </h2>
+        ${items
+          .map((item) => {
+            const summary = item.description?.trim();
+            return `
+          <div style="margin-bottom: 16px; padding: 14px; background: #f7f7f7; border-radius: 6px;">
+            <h3 style="margin: 0 0 6px 0; font-size: 16px; line-height: 1.35;">
+              <a href="${escapeHtml(item.source_url)}" style="color: #041026; text-decoration: none;">${escapeHtml(item.title)}</a>
+            </h3>
+            ${summary ? `<p style="margin: 0 0 8px 0; font-size: 14px; line-height: 1.45; color: #333;">${escapeHtml(summary)}</p>` : ""}
+            <p style="margin: 0; font-size: 12px; color: #666;">
+              ${item.source_name ? `${escapeHtml(item.source_name)} · ` : ""}${new Date(item.published_at).toLocaleDateString("pt-BR")}
+            </p>
+          </div>`;
+          })
+          .join("")}
+      </div>`,
+    )
+    .join("");
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #fff;">
+  <header style="text-align: center; margin-bottom: 32px;">
+    <h1 style="font-family: Georgia, 'Noto Serif', serif; color: #041026; font-size: 24px; margin: 0;">Boletim — Conexões do Saber</h1>
+    <p style="color: #666; font-size: 14px; margin-top: 8px;">Seu briefing diário das humanidades</p>
+  </header>
+  <main>${newsHtml}</main>
+  <footer style="margin-top: 32px; padding-top: 16px; border-top: 1px solid #eee; text-align: center;">
+    <p style="font-size: 12px; color: #999;">Você recebe este e-mail porque confirmou sua inscrição no Boletim. <a href="${SITE_URL}" style="color: #666;">Abrir o Boletim</a></p>
+    <p style="font-size: 12px; margin-top: 8px;"><a href="${unsubscribeUrl}" style="color: #666;">Cancelar inscrição</a></p>
+  </footer>
+</body>
+</html>`;
+}
+
+/** Envia via Resend registrando status HTTP, duração e erro em integration_calls (integration = 'resend'). */
+async function sendViaResend(
+  db: SupabaseClient,
+  apiKey: string,
+  payload: { from: string; to: string[]; subject: string; html: string },
+): Promise<{ ok: boolean; status: number | null; providerId: string | null; error: string | null }> {
+  const started = Date.now();
+  let status: number | null = null;
+  try {
+    const res = await fetch(RESEND_ENDPOINT, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    status = res.status;
+    const text = await res.text();
+    const duration = Date.now() - started;
+    if (!res.ok) {
+      await db.from("integration_calls").insert({ integration: "resend", endpoint: "emails", method: "POST", http_status: status, duration_ms: duration, ok: false, items_in: 1, items_new: 0, error: text.slice(0, 2000) });
+      return { ok: false, status, providerId: null, error: `HTTP ${status}: ${text.slice(0, 500)}` };
+    }
+    let providerId: string | null = null;
+    try {
+      providerId = (JSON.parse(text) as { id?: string }).id ?? null;
+    } catch { /* corpo não-JSON: segue sem id */ }
+    await db.from("integration_calls").insert({ integration: "resend", endpoint: "emails", method: "POST", http_status: status, duration_ms: duration, ok: true, items_in: 1, items_new: 1, error: null });
+    return { ok: true, status, providerId, error: null };
+  } catch (e) {
+    const err = e instanceof Error ? e.message : String(e);
+    await db.from("integration_calls").insert({ integration: "resend", endpoint: "emails", method: "POST", http_status: status, duration_ms: Date.now() - started, ok: false, items_in: 1, items_new: 0, error: err.slice(0, 2000) });
+    return { ok: false, status, providerId: null, error: err };
   }
+}
 
-  // Note: This function is rate-limited by cron schedule (once daily at 8AM BRT)
-  // Only performs safe read operations and sends emails via Resend
-  console.log("[NewsletterSend] Request received");
+Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  // Helper function to mask email addresses in logs
-  const maskEmail = (email: string): string => {
-    return email.replace(/(.{2}).*(@.*)/, '$1***$2');
-  };
+  const jsonResponse = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   try {
-    console.log("[NewsletterSend] Starting daily newsletter send");
+    const resendKey = Deno.env.get("RESEND_API_KEY");
+    if (!resendKey) {
+      console.error(LOG, "RESEND_API_KEY não configurada");
+      return jsonResponse({ error: "RESEND_API_KEY não configurada" }, 500);
+    }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const db = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-    // Get all subscribers
-    const { data: subscribers, error: subError } = await supabase
+    // Só quem confirmou a inscrição
+    const { data: subscribers, error: subError } = await db
       .from("newsletter_subscriptions")
-      .select("*");
-
-    if (subError) {
-      console.error("[NewsletterSend] Error fetching subscribers:", subError);
-      throw subError;
-    }
+      .select("id, email, topics, last_sent_at, unsubscribe_token")
+      .eq("confirmed", true);
+    if (subError) throw subError;
 
     if (!subscribers || subscribers.length === 0) {
-      console.log("[NewsletterSend] No subscribers found");
-      return new Response(
-        JSON.stringify({ success: true, message: "No subscribers to send to" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      console.log(LOG, "Nenhum assinante confirmado");
+      return jsonResponse({ success: true, sent: 0, failed: 0, skipped: 0, total: 0, message: "Nenhum assinante confirmado" });
     }
+    console.log(LOG, `${subscribers.length} assinantes confirmados`);
 
-    console.log(`[NewsletterSend] Found ${subscribers.length} subscribers`);
-
-    let sentCount = 0;
-    let skipCount = 0;
+    const last24h = new Date(Date.now() - 24 * 3600_000).toISOString();
+    const today = new Date().toDateString();
+    let sent = 0, failed = 0, skipped = 0;
 
     for (const subscriber of subscribers as Subscriber[]) {
-      // Check if already sent today
-      if (subscriber.last_sent_at) {
-        const lastSent = new Date(subscriber.last_sent_at);
-        const today = new Date();
-        if (lastSent.toDateString() === today.toDateString()) {
-          console.log(`[NewsletterSend] Already sent to subscriber ${subscriber.id} today, skipping`);
-          skipCount++;
-          continue;
-        }
+      if (subscriber.last_sent_at && new Date(subscriber.last_sent_at).toDateString() === today) {
+        skipped++;
+        continue;
       }
 
-      // Fetch news published in the last 24 hours only
-      const last24Hours = new Date();
-      last24Hours.setHours(last24Hours.getHours() - 24);
-
-      let newsQuery = supabase
+      let query = db
         .from("news")
-        .select("*")
+        .select("id, title, description, topic, source_url, source_name, published_at, fetched_at")
         .eq("status", "publicada")
         .in("topic", subscriber.topics)
-        .gte("published_at", last24Hours.toISOString())
+        .gte("published_at", last24h)
         .order("published_at", { ascending: false });
+      if (subscriber.last_sent_at) query = query.gt("fetched_at", subscriber.last_sent_at);
 
-      // Only include news fetched after last_sent_at if subscriber has received newsletters before
-      if (subscriber.last_sent_at) {
-        newsQuery = newsQuery.gt("fetched_at", subscriber.last_sent_at);
-      }
-
-      const { data: allNews, error: newsError } = await newsQuery;
-
+      const { data: allNews, error: newsError } = await query;
       if (newsError) {
-        console.error(`[NewsletterSend] Error fetching news for subscriber ${subscriber.id}:`, newsError);
+        console.error(LOG, `Erro ao buscar notícias para ${subscriber.id}:`, newsError.message);
         continue;
       }
 
-      if (!allNews || allNews.length === 0) {
-        console.log(`[NewsletterSend] No new news for subscriber ${subscriber.id}, skipping`);
-        skipCount++;
-        continue;
+      const byTopic: Record<string, NewsItem[]> = {};
+      for (const item of (allNews ?? []) as NewsItem[]) {
+        (byTopic[item.topic] ??= []);
+        if (byTopic[item.topic].length < MAX_PER_TOPIC) byTopic[item.topic].push(item);
       }
-
-      // Group by topic and take max 3 per topic
-      const newsByTopic: Record<string, NewsItem[]> = {};
-      for (const item of allNews as NewsItem[]) {
-        if (!newsByTopic[item.topic]) newsByTopic[item.topic] = [];
-        if (newsByTopic[item.topic].length < 3) {
-          newsByTopic[item.topic].push(item);
-        }
-      }
-
-      const news = Object.values(newsByTopic).flat();
-
+      const news = Object.values(byTopic).flat();
       if (news.length === 0) {
-        console.log(`[NewsletterSend] No new news after filtering for subscriber ${subscriber.id}, skipping`);
-        skipCount++;
+        skipped++;
         continue;
       }
 
-      const topicsWithNews = Object.keys(newsByTopic);
-      const topicsWithoutNews = subscriber.topics.filter(
-        (topic) => !newsByTopic[topic] || newsByTopic[topic].length === 0,
-      );
+      const unsubscribeUrl = `${supabaseUrl}/functions/v1/newsletter-unsubscribe?token=${subscriber.unsubscribe_token ?? "invalid"}`;
+      const subject = `Boletim de hoje — ${new Date().toLocaleDateString("pt-BR")}`;
+      console.log(LOG, `Enviando ${news.length} itens para ${maskEmail(subscriber.email)}`);
 
-      console.log(
-        `[NewsletterSend] Topics summary for ${maskEmail(subscriber.email)} - with news: ${topicsWithNews.join(", ") || "none"}, without news: ${topicsWithoutNews.join(", ") || "none"}`,
-      );
-
-      console.log(`[NewsletterSend] Sending ${news.length} news items to ${maskEmail(subscriber.email)}`);
-
-      // Generate unsubscribe URL - handle null token safely
-      const unsubscribeToken = subscriber.unsubscribe_token || 'invalid';
-      const unsubscribeUrl = `${supabaseUrl}/functions/v1/newsletter-unsubscribe?token=${unsubscribeToken}`;
-
-      // Send email
-      const { error: emailError } = await resend.emails.send({
-        from: "Notícias Temáticas <noreply@institutodedalus.com.br>",
+      const result = await sendViaResend(db, resendKey, {
+        from: "Boletim Conexões do Saber <noreply@institutodedalus.com.br>",
         to: [subscriber.email],
-        subject: `📰 Suas notícias de hoje - ${new Date().toLocaleDateString('pt-BR')}`,
-        html: generateEmailHtml(news as NewsItem[], unsubscribeUrl),
+        subject,
+        html: generateEmailHtml(news, unsubscribeUrl),
       });
 
-      if (emailError) {
-        console.error(`[NewsletterSend] Error sending email to subscriber ${subscriber.id}:`, emailError);
+      const { error: briefingError } = await db.from("briefings").insert({
+        subscriber_id: subscriber.id,
+        subject,
+        news_ids: news.map((n) => n.id),
+        status: result.ok ? "enviado" : "falhou",
+        provider_id: result.providerId,
+        error: result.error,
+      });
+      if (briefingError) console.error(LOG, "briefings insert failed:", briefingError.message);
+
+      if (!result.ok) {
+        failed++;
+        console.error(LOG, `Falha no envio para ${maskEmail(subscriber.email)}: ${result.error}`);
         continue;
       }
 
-      // Update last_sent_at
-      const { error: updateError } = await supabase
+      const { error: updateError } = await db
         .from("newsletter_subscriptions")
         .update({ last_sent_at: new Date().toISOString() })
         .eq("id", subscriber.id);
-
-      if (updateError) {
-        console.error(`[NewsletterSend] Error updating last_sent_at for subscriber ${subscriber.id}:`, updateError);
-      }
-
-      sentCount++;
-      console.log(`[NewsletterSend] Successfully sent to ${maskEmail(subscriber.email)}`);
+      if (updateError) console.error(LOG, `Erro ao atualizar last_sent_at de ${subscriber.id}:`, updateError.message);
+      sent++;
     }
 
-    console.log(`[NewsletterSend] Complete. Sent: ${sentCount}, Skipped: ${skipCount}`);
-
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        sent: sentCount, 
-        skipped: skipCount,
-        total: subscribers.length 
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    console.log(LOG, `Concluído. Enviados: ${sent}, Falhas: ${failed}, Pulados: ${skipped}`);
+    return jsonResponse({ success: true, sent, failed, skipped, total: subscribers.length });
   } catch (error) {
-    console.error("[NewsletterSend] Error:", error);
-    return new Response(
-      JSON.stringify({ error: "Erro ao enviar newsletter" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    console.error(LOG, "Erro:", error);
+    return jsonResponse({ error: "Erro ao enviar newsletter" }, 500);
   }
 });

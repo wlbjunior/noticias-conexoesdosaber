@@ -35,6 +35,50 @@ export type Database = {
         }
         Relationships: []
       }
+      briefings: {
+        Row: {
+          created_at: string
+          error: string | null
+          id: string
+          news_ids: string[]
+          provider_id: string | null
+          sent_at: string
+          status: string
+          subject: string
+          subscriber_id: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          news_ids?: string[]
+          provider_id?: string | null
+          sent_at?: string
+          status: string
+          subject: string
+          subscriber_id: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          news_ids?: string[]
+          provider_id?: string | null
+          sent_at?: string
+          status?: string
+          subject?: string
+          subscriber_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "briefings_subscriber_id_fkey"
+            columns: ["subscriber_id"]
+            isOneToOne: false
+            referencedRelation: "newsletter_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_messages: {
         Row: {
           created_at: string

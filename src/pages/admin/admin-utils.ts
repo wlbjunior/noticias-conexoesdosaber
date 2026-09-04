@@ -24,4 +24,5 @@ export const INTEGRATION_META: Record<string, { label: string; role: string }> =
   rss: { label: "Feeds RSS diretos", role: "Feeds de veículos e instituições cadastrados em Fontes." },
   lovable_ai: { label: "IA editorial (Lovable AI)", role: "Valida, classifica e resume as notícias coletadas." },
   ingestao: { label: "Ingestão por tema", role: "Consolida a rodada: itens recebidos versus realmente novos." },
+  resend: { label: "E-mail (Resend)", role: "Envia o briefing diário aos assinantes confirmados." },
 };

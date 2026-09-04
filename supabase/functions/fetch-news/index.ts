@@ -495,6 +495,14 @@ interface AnalyzeInput {
   snippet?: string | null;
 }
 
+// Disjuntor da IA dentro de uma execução: 402 (sem créditos) e 403 (bloqueio de política)
+// não são transitórios — após o primeiro, as demais chamadas da rodada são puladas.
+const aiState: { blockedStatus: number | null; lastStatus: number | null } = { blockedStatus: null, lastStatus: null };
+function resetAiState() {
+  aiState.blockedStatus = null;
+  aiState.lastStatus = null;
+}
+
 async function analyzeBatch(
   db: SupabaseClient,
   mode: { kind: "validar"; theme: Theme } | { kind: "classificar"; themes: Theme[] },
@@ -503,6 +511,10 @@ async function analyzeBatch(
   const apiKey = Deno.env.get("LOVABLE_API_KEY");
   if (!apiKey) {
     console.warn(LOG, "LOVABLE_API_KEY ausente — itens ficam retidos sem análise");
+    return null;
+  }
+  if (aiState.blockedStatus !== null) {
+    console.warn(LOG, `IA bloqueada nesta execução (HTTP ${aiState.blockedStatus}) — lote pulado`);
     return null;
   }
 
@@ -548,13 +560,21 @@ async function analyzeBatch(
         }),
       });
       status = res.status;
+      aiState.lastStatus = status;
       const duration = Date.now() - started;
 
       if (!res.ok) {
         const body = await res.text();
         await logCall(db, { integration: "lovable_ai", endpoint, method: "POST", http_status: status, duration_ms: duration, ok: false, items_in: items.length, error: body.slice(0, 500) });
+        if (status === 402 || status === 403) {
+          // Terminal: sem créditos / bloqueado por política. Não há retry e o resto da execução é pulado.
+          aiState.blockedStatus = status;
+          console.error(LOG, `IA ${status} (${endpointTag}) — disjuntor aberto para o resto desta execução`);
+          return null;
+        }
         if ((status === 429 || status >= 500) && attempt < AI_MAX_RETRIES) {
-          const wait = 2000 * 2 ** (attempt - 1);
+          const retryAfter = Number(res.headers.get("Retry-After"));
+          const wait = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 2000 * 2 ** (attempt - 1);
           console.warn(LOG, `IA ${status} (${endpointTag}), tentativa ${attempt}, aguardando ${wait}ms`);
           await sleep(wait);
           continue;
@@ -860,12 +880,13 @@ async function processTheme(
     if (a) await publishWithAnalysis(db, r.id, a);
   }
 
-  // 6) IA em lote (validação): novas temáticas + publicadas antigas sem análise (backfill)
+  // 6) IA em lote (validação): novas temáticas + pendentes de rodadas anteriores (backfill).
+  //    Inclui as "arquivada" sem análise: são as retidas quando a IA falhou fechada em rodadas passadas.
   const { data: unanalyzed } = await db
     .from("news")
     .select("id, title, source_name, source_url, published_at, news_analysis(id)")
     .eq("theme_id", theme.id)
-    .eq("status", "publicada")
+    .in("status", ["publicada", "arquivada"])
     .is("news_analysis", null)
     .order("published_at", { ascending: false })
     .limit(20);
@@ -1021,6 +1042,117 @@ async function runCollection(): Promise<void> {
 }
 
 // ------------------------------------------------------------------
+// Classificar pendentes: só o acúmulo (itens sem news_analysis), sem coleta.
+// Lotes de PENDING_BATCH por tema; para no primeiro 402/403; regra das 10 por tema ao final.
+// ------------------------------------------------------------------
+const PENDING_BATCH = 20;
+const PENDING_MAX_PER_RUN = 200;
+
+interface PendingSummary {
+  analyzed: number;
+  published: number;
+  spam: number;
+  irrelevant: number;
+  retained: number;
+  ai_blocked_status: number | null;
+  ai_last_status: number | null;
+}
+
+async function classifyPending(): Promise<PendingSummary> {
+  const startedAt = Date.now();
+  resetAiState();
+  const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const summary: PendingSummary = { analyzed: 0, published: 0, spam: 0, irrelevant: 0, retained: 0, ai_blocked_status: null, ai_last_status: null };
+
+  const { data: themes } = await db.from("themes").select("id, slug, name, description").eq("active", true).order("sort_order");
+  let budget = PENDING_MAX_PER_RUN;
+
+  for (const theme of (themes ?? []) as Theme[]) {
+    if (aiState.blockedStatus !== null || budget <= 0) break;
+
+    const { data: pending } = await db
+      .from("news")
+      .select("id, title, source_name, source_url, published_at, news_analysis(id)")
+      .eq("theme_id", theme.id)
+      .in("status", ["publicada", "arquivada"])
+      .is("news_analysis", null)
+      .order("published_at", { ascending: false })
+      .limit(Math.min(budget, 100));
+    const rows = (pending ?? []) as InsertedRow[];
+    if (rows.length === 0) continue;
+    console.log(LOG, `pendentes ${theme.slug}: ${rows.length}`);
+
+    for (let i = 0; i < rows.length; i += PENDING_BATCH) {
+      if (aiState.blockedStatus !== null) break;
+      const batch = rows.slice(i, i + PENDING_BATCH);
+      budget -= batch.length;
+      const results = await analyzeBatch(
+        db,
+        { kind: "validar", theme },
+        batch.map((r) => ({ id: r.id, title: r.title, source_name: r.source_name, snippet: null })),
+      );
+      if (!results) {
+        summary.retained += batch.length;
+        continue;
+      }
+      const byId = new Map(results.map((r) => [r.id, r]));
+      for (const item of batch) {
+        const r = byId.get(item.id);
+        if (!r) {
+          summary.retained++;
+          continue;
+        }
+        summary.analyzed++;
+        if (r.spam || !r.relevante) {
+          await discardNews(
+            db,
+            { id: item.id, theme_id: theme.id, topic: theme.slug, title: item.title, description: r.resumo, source_name: item.source_name, source_url: item.source_url, published_at: item.published_at },
+            r.spam ? "Marcada como spam pela IA" : "Marcada como irrelevante pela IA para o tema",
+            JSON.stringify(r),
+          );
+          if (r.spam) summary.spam++;
+          else summary.irrelevant++;
+          continue;
+        }
+        await publishWithAnalysis(db, item.id, r);
+        summary.published++;
+      }
+      // Espaçamento entre lotes: o limite de taxa é compartilhado por todo o workspace
+      if (i + PENDING_BATCH < rows.length) await sleep(1500);
+    }
+
+    // Regra normal: mantém as 10 mais recentes publicadas por tema
+    const { data: published } = await db
+      .from("news")
+      .select("id")
+      .eq("theme_id", theme.id)
+      .eq("status", "publicada")
+      .order("published_at", { ascending: false });
+    const excess = (published ?? []).slice(PUBLISHED_PER_THEME).map((p: { id: string }) => p.id);
+    if (excess.length) await db.from("news").update({ status: "arquivada" }).in("id", excess);
+  }
+
+  summary.ai_blocked_status = aiState.blockedStatus;
+  summary.ai_last_status = aiState.lastStatus;
+  const failed = summary.ai_blocked_status !== null || (summary.analyzed === 0 && summary.retained > 0);
+  await logCall(db, {
+    integration: "ingestao",
+    endpoint: "classificar_pendentes",
+    method: "PIPELINE",
+    http_status: summary.ai_last_status,
+    duration_ms: Date.now() - startedAt,
+    ok: !failed,
+    items_in: summary.analyzed + summary.retained,
+    items_new: summary.published,
+    error: failed
+      ? `IA indisponível (HTTP ${summary.ai_blocked_status ?? summary.ai_last_status ?? "sem resposta"}) — ${summary.retained} itens continuam retidos`
+      : `spam=${summary.spam} irrelevantes=${summary.irrelevant} retidos=${summary.retained}`,
+  });
+  console.log(LOG, "classificar_pendentes:", JSON.stringify(summary));
+  return summary;
+}
+
+// ------------------------------------------------------------------
 // Entrypoint
 // ------------------------------------------------------------------
 declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void } | undefined;
@@ -1084,8 +1216,19 @@ serve(async (req: Request) => {
       if (!(await isEditorialStaff(req))) return json({ error: "Acesso restrito à equipe editorial" }, 403);
       return await testSingleSource(body.source_id);
     }
+    if (body.action === "classify_pending") {
+      if (!(await isEditorialStaff(req))) return json({ error: "Acesso restrito à equipe editorial" }, 403);
+      const pendingJob = classifyPending().catch((e) => console.error(LOG, "Erro fatal (classificar pendentes)", e));
+      if (typeof EdgeRuntime !== "undefined" && EdgeRuntime?.waitUntil) {
+        EdgeRuntime.waitUntil(pendingJob);
+        return json({ accepted: true, message: "Classificação dos pendentes iniciada em segundo plano" }, 202);
+      }
+      const result = await pendingJob;
+      return json({ success: true, result });
+    }
   }
 
+  resetAiState();
   const job = runCollection().catch((e) => console.error(LOG, "Erro fatal", e));
 
   if (typeof EdgeRuntime !== "undefined" && EdgeRuntime?.waitUntil) {
